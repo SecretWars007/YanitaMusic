@@ -7,6 +7,8 @@
 .packages
 .pub-cache/
 .pub/
+
+*.txt
 build/
 coverage/
 
