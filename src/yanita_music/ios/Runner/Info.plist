@@ -62,9 +62,18 @@
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Esta aplicación requiere acceso al micrófono para grabar interpretaciones de piano para su transcripción.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Esta aplicación requiere acceso a su biblioteca para subir archivos de audio para transcripción.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Esta aplicación requiere acceso a su música para transcribir interpretaciones grabadas.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>
