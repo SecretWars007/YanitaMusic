@@ -1,0 +1,18 @@
+# General ignores
+.agent/
+documentos/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+
+# IDEs
+.vscode/
+.idea/
+
+# Flutter/Build leftovers at root (rare)
+build/
+.dart_tool/
+.pub/
+.pub-cache/
