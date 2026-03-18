@@ -67,11 +67,10 @@ class TranscriptionRepositoryImpl implements TranscriptionRepository {
     AudioFeatures audioFeatures,
   ) async {
     if (!_isInitialized || _interpreter == null) {
-      return const Left(
-        TranscriptionFailure(
-          message: 'Modelo no inicializado. Llame a initializeModel() primero.',
-        ),
-      );
+      _logger.i('Modelo no inicializado. Iniciando automáticamente...');
+      final initResult = await initializeModel();
+      final initError = initResult.fold((failure) => failure, (_) => null);
+      if (initError != null) return Left(initError);
     }
 
     try {

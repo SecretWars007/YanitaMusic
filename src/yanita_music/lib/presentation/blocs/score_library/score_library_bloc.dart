@@ -5,7 +5,9 @@ import 'package:yanita_music/domain/usecases/get_scores_usecase.dart';
 import 'package:yanita_music/domain/usecases/delete_score_usecase.dart';
 import 'package:yanita_music/domain/usecases/export_midi_usecase.dart';
 import 'package:yanita_music/domain/usecases/export_musicxml_usecase.dart';
+import 'package:yanita_music/domain/usecases/save_score_usecase.dart';
 import 'package:yanita_music/core/usecases/usecase.dart';
+import 'package:yanita_music/core/utils/demo_score_generator.dart';
 
 part 'score_library_event.dart';
 part 'score_library_state.dart';
@@ -16,16 +18,19 @@ class ScoreLibraryBloc extends Bloc<ScoreLibraryEvent, ScoreLibraryState> {
   final DeleteScoreUseCase _deleteScoreUseCase;
   final ExportMidiUseCase _exportMidiUseCase;
   final ExportMusicXmlUseCase _exportMusicXmlUseCase;
+  final SaveScoreUseCase _saveScoreUseCase;
 
   ScoreLibraryBloc({
     required GetScoresUseCase getScoresUseCase,
     required DeleteScoreUseCase deleteScoreUseCase,
     required ExportMidiUseCase exportMidiUseCase,
     required ExportMusicXmlUseCase exportMusicXmlUseCase,
+    required SaveScoreUseCase saveScoreUseCase,
   })  : _getScoresUseCase = getScoresUseCase,
         _deleteScoreUseCase = deleteScoreUseCase,
         _exportMidiUseCase = exportMidiUseCase,
         _exportMusicXmlUseCase = exportMusicXmlUseCase,
+        _saveScoreUseCase = saveScoreUseCase,
         super(ScoreLibraryInitial()) {
     on<LoadScores>(_onLoadScores);
     on<DeleteScoreEvent>(_onDeleteScore);
@@ -41,11 +46,14 @@ class ScoreLibraryBloc extends Bloc<ScoreLibraryEvent, ScoreLibraryState> {
 
     final result = await _getScoresUseCase(const NoParams());
 
-    result.fold(
-      (failure) => emit(ScoreLibraryError(message: failure.message)),
-      (scores) {
+    await result.fold(
+      (failure) async => emit(ScoreLibraryError(message: failure.message)),
+      (scores) async {
         if (scores.isEmpty) {
-          emit(ScoreLibraryEmpty());
+          // Si no hay partituras, generamos el demo y lo guardamos físicamente en DB
+          final demo = DemoScoreGenerator.generateOdeToJoy();
+          await _saveScoreUseCase(SaveScoreParams(score: demo));
+          emit(ScoreLibraryLoaded(scores: [demo]));
         } else {
           emit(ScoreLibraryLoaded(scores: scores));
         }

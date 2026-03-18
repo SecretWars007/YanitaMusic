@@ -137,6 +137,7 @@ Future<void> initDependencies() async {
       deleteScoreUseCase: sl(),
       exportMidiUseCase: sl(),
       exportMusicXmlUseCase: sl(),
+      saveScoreUseCase: sl(),
     ),
   );
 

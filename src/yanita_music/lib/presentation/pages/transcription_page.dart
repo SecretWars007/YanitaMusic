@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:yanita_music/presentation/blocs/transcription/transcription_bloc.dart';
+import 'package:yanita_music/presentation/blocs/songbook/songbook_bloc.dart';
+import 'package:yanita_music/presentation/blocs/score_library/score_library_bloc.dart';
 
 /// Página de transcripción musical.
 ///
@@ -31,11 +33,19 @@ class TranscriptionPage extends StatelessWidget {
           if (state is TranscriptionSaved) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Partitura "${state.title}" guardada exitosamente'),
+                content: Text(
+                  'Partitura "${state.title}" guardada exitosamente',
+                ),
                 backgroundColor: Colors.green.shade700,
               ),
             );
+            // Refrescar el cancionero y la biblioteca para que aparezcan
+            context.read<SongbookBloc>().add(LoadSongs());
+            context.read<ScoreLibraryBloc>().add(LoadScores());
             context.read<TranscriptionBloc>().add(ResetTranscription());
+            // Ir a la pestaña de Biblioteca (índice 2) si se desea,
+            // o simplemente mostrar el mensaje.
+            // Navigator.of(context).pop(); // Eliminado para tabs
           }
           if (state is TranscriptionError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -57,8 +67,7 @@ class TranscriptionPage extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Área de upload
-                if (state is TranscriptionInitial)
-                  _buildUploadCard(context),
+                if (state is TranscriptionInitial) _buildUploadCard(context),
 
                 if (state is AudioFileSelected)
                   _buildFileSelectedCard(context, state),
@@ -68,6 +77,9 @@ class TranscriptionPage extends StatelessWidget {
 
                 if (state is Transcribing)
                   _buildTranscribingCard(context, state),
+
+                if (state is SavingTranscription)
+                  _buildSavingCard(context, state),
 
                 if (state is TranscriptionSuccess)
                   _buildSuccessCard(context, state),
@@ -95,10 +107,7 @@ class TranscriptionPage extends StatelessWidget {
             child: Text(
               'Solo se puede transcribir música de piano. '
               'Voces y otros instrumentos no son soportados.',
-              style: TextStyle(
-                color: Colors.amber.shade100,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: Colors.amber.shade100, fontSize: 13),
             ),
           ),
         ],
@@ -109,8 +118,7 @@ class TranscriptionPage extends StatelessWidget {
   Widget _buildUploadCard(BuildContext context) {
     return Card(
       child: InkWell(
-        onTap: () =>
-            context.read<TranscriptionBloc>().add(SelectAudioFile()),
+        onTap: () => context.read<TranscriptionBloc>().add(SelectAudioFile()),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           height: 220,
@@ -118,10 +126,10 @@ class TranscriptionPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.cloud_upload_outlined,
                 size: 64,
-                color: Theme.of(context).colorScheme.primary,
+                color: Color(0xFFFF9800),
               ),
               const SizedBox(height: 16),
               Text(
@@ -136,8 +144,34 @@ class TranscriptionPage extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Tamaño máximo: 50 MB',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 12,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontSize: 12),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      color: Color(0xFFFF9800),
+                      size: 16,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'TIP: Si no ves tus archivos, usa el menú lateral en "Recientes".',
+                      style: TextStyle(fontSize: 10, color: Colors.white70),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -147,10 +181,7 @@ class TranscriptionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildFileSelectedCard(
-    BuildContext context,
-    AudioFileSelected state,
-  ) {
+  Widget _buildFileSelectedCard(BuildContext context, AudioFileSelected state) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -172,16 +203,20 @@ class TranscriptionPage extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 OutlinedButton.icon(
-                  onPressed: () => context
-                      .read<TranscriptionBloc>()
-                      .add(ResetTranscription()),
+                  onPressed: () => context.read<TranscriptionBloc>().add(
+                    ResetTranscription(),
+                  ),
                   icon: const Icon(Icons.close),
                   label: const Text('Cancelar'),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () => context
-                      .read<TranscriptionBloc>()
-                      .add(StartTranscription(filePath: state.filePath)),
+                  onPressed: () => context.read<TranscriptionBloc>().add(
+                    StartTranscription(filePath: state.filePath),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF9800),
+                    foregroundColor: Colors.white,
+                  ),
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('Transcribir'),
                 ),
@@ -193,10 +228,7 @@ class TranscriptionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildProcessingCard(
-    BuildContext context,
-    AudioProcessing state,
-  ) {
+  Widget _buildProcessingCard(BuildContext context, AudioProcessing state) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -214,14 +246,11 @@ class TranscriptionPage extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(
-              state.fileName,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(state.fileName, style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 16),
-            LinearProgressIndicator(
-              backgroundColor: Colors.white12,
-              color: Theme.of(context).colorScheme.primary,
+            const LinearProgressIndicator(
+              backgroundColor: Colors.white10,
+              color: Color(0xFFFF9800),
             ),
           ],
         ),
@@ -229,10 +258,7 @@ class TranscriptionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTranscribingCard(
-    BuildContext context,
-    Transcribing state,
-  ) {
+  Widget _buildTranscribingCard(BuildContext context, Transcribing state) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -243,7 +269,7 @@ class TranscriptionPage extends StatelessWidget {
               height: 64,
               child: CircularProgressIndicator(
                 strokeWidth: 3,
-                color: Color(0xFFD4A574),
+                color: Color(0xFFFF9800),
               ),
             ),
             const SizedBox(height: 24),
@@ -263,27 +289,44 @@ class TranscriptionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSuccessCard(
-    BuildContext context,
-    TranscriptionSuccess state,
-  ) {
-    final titleController = TextEditingController(
-      text: state.filePath.split('/').last.split('\\').last.replaceAll(
-        RegExp(r'\.[^.]+$'),
-        '',
+  Widget _buildSavingCard(BuildContext context, SavingTranscription state) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            const SizedBox(
+              width: 64,
+              height: 64,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: Color(0xFFFF9800),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Guardando "${state.title}"...',
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Almacenando en la base de datos local',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ],
+        ),
       ),
     );
+  }
 
+  Widget _buildSuccessCard(BuildContext context, TranscriptionSuccess state) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            Icon(
-              Icons.check_circle,
-              size: 48,
-              color: Colors.green.shade400,
-            ),
+            Icon(Icons.check_circle, size: 48, color: Colors.green.shade400),
             const SizedBox(height: 16),
             Text(
               '¡Transcripción completada!',
@@ -300,39 +343,22 @@ class TranscriptionPage extends StatelessWidget {
               state.isPolyphonic ? 'Polifónica' : 'Monofónica',
             ),
             const SizedBox(height: 24),
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(
-                labelText: 'Título de la partitura',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                prefixIcon: const Icon(Icons.title),
-              ),
+            const Text(
+              'La partitura se ha guardado automáticamente en tu biblioteca.',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => context
-                      .read<TranscriptionBloc>()
-                      .add(ResetTranscription()),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Nueva'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => context
-                      .read<TranscriptionBloc>()
-                      .add(SaveTranscriptionResult(
-                        title: titleController.text.isNotEmpty
-                            ? titleController.text
-                            : 'Sin título',
-                      )),
-                  icon: const Icon(Icons.save),
-                  label: const Text('Guardar'),
-                ),
-              ],
+            ElevatedButton.icon(
+              onPressed: () => context.read<TranscriptionBloc>().add(
+                ResetTranscription(),
+              ),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Nueva Transcripción'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF9800),
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),

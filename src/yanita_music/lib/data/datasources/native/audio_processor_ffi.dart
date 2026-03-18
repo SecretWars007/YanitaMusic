@@ -105,9 +105,7 @@ class AudioProcessorFFI {
   })
   processFile(String filePath) {
     if (!_isInitialized) {
-      throw const AudioProcessingException(
-        message: 'Módulo nativo no inicializado. Llame a initialize() primero.',
-      );
+      initialize();
     }
 
     final pathPtr = filePath.toNativeUtf8();

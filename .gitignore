@@ -1,5 +1,6 @@
 # General ignores
 .agent/
+android/.settings/
 documentos/
 .DS_Store
 Thumbs.db

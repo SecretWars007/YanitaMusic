@@ -42,7 +42,8 @@ class DatabaseHelper {
 
   /// Configura la conexión con opciones de seguridad y rendimiento.
   Future<void> _onConfigure(Database db) async {
-    await db.execute('PRAGMA journal_mode=WAL');
+    // Usamos rawQuery para PRAGMAs que pueden retornar resultados para evitar errores de tipo "SQLITE_OK"
+    await db.rawQuery('PRAGMA journal_mode=WAL');
     await db.execute('PRAGMA foreign_keys=ON');
     await db.execute('PRAGMA synchronous=NORMAL');
     await db.execute('PRAGMA cache_size=10000');

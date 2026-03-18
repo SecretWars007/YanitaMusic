@@ -4,7 +4,8 @@ import 'package:yanita_music/injection_container.dart' as di;
 import 'package:yanita_music/presentation/blocs/transcription/transcription_bloc.dart';
 import 'package:yanita_music/presentation/blocs/score_library/score_library_bloc.dart';
 import 'package:yanita_music/presentation/blocs/songbook/songbook_bloc.dart';
-import 'package:yanita_music/presentation/pages/home_page.dart';
+
+import 'package:yanita_music/presentation/pages/splash_screen.dart';
 import 'package:yanita_music/presentation/theme/app_theme.dart';
 
 void main() async {
@@ -35,10 +36,10 @@ class PianoScribeApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'PianoScribe',
+        title: 'Yanita Music',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const HomePage(),
+        home: const SplashScreen(),
       ),
     );
   }

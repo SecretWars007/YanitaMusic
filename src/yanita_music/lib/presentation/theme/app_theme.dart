@@ -8,12 +8,16 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
-  // Colores primarios
-  static const _primaryColor = Color(0xFF1A1A2E);
-  static const _secondaryColor = Color(0xFF16213E);
-  static const _accentColor = Color(0xFFE94560);
-  static const _goldAccent = Color(0xFFD4A574);
-  static const _surfaceColor = Color(0xFF0F3460);
+  // Colores primarios (Material Orange Palette)
+  static const _primaryColor = Color(0xFF121212); // Gris fondo oscuro
+  static const _secondaryColor = Color(0xFF333333); // Gris neutro oscuro
+  static const _accentColor = Color(0xFFFF9800); // Naranja 500
+  static const _goldAccent = Color(0xFFE65100); // Naranja 900
+  static const _surfaceColor = Color(0xFF222222); // Gris superficie muy oscuro
+
+  // Textos
+  static const _textLight = Color(0xFFF8F9FA); // Texto claro (modo oscuro)
+  static const _textNeutral = Color(0xFFE8F0F5); // Gris azulado neutro
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -35,14 +39,14 @@ class AppTheme {
         titleTextStyle: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: _textLight,
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: _textLight),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: _secondaryColor,
+        backgroundColor: _primaryColor,
         selectedItemColor: _accentColor,
-        unselectedItemColor: Colors.white54,
+        unselectedItemColor: _textNeutral.withValues(alpha: 0.6),
         type: BottomNavigationBarType.fixed,
         selectedLabelStyle: GoogleFonts.poppins(
           fontSize: 12,
@@ -79,30 +83,30 @@ class AppTheme {
         headlineLarge: GoogleFonts.poppins(
           fontSize: 28,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: _textLight,
         ),
         headlineMedium: GoogleFonts.poppins(
           fontSize: 22,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: _textLight,
         ),
         titleLarge: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.w500,
-          color: Colors.white,
+          color: _textLight,
         ),
         titleMedium: GoogleFonts.poppins(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: Colors.white,
+          color: _textLight,
         ),
         bodyLarge: GoogleFonts.inter(
           fontSize: 16,
-          color: Colors.white70,
+          color: _textNeutral,
         ),
         bodyMedium: GoogleFonts.inter(
           fontSize: 14,
-          color: Colors.white70,
+          color: _textNeutral,
         ),
         labelLarge: GoogleFonts.poppins(
           fontSize: 14,
@@ -110,13 +114,13 @@ class AppTheme {
           color: _accentColor,
         ),
       ),
-      iconTheme: const IconThemeData(color: _goldAccent),
+      iconTheme: const IconThemeData(color: _accentColor),
       dividerTheme: DividerThemeData(
-        color: Colors.white.withValues(alpha: 0.1),
+        color: _textNeutral.withValues(alpha: 0.1),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: _surfaceColor,
-        contentTextStyle: GoogleFonts.inter(color: Colors.white),
+        contentTextStyle: GoogleFonts.inter(color: _textLight),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),

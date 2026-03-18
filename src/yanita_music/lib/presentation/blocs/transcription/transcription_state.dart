@@ -73,6 +73,16 @@ final class TranscriptionSuccess extends TranscriptionState {
   List<Object?> get props => [filePath, noteCount, duration];
 }
 
+/// Guardando la partitura en la base de datos de forma automática.
+final class SavingTranscription extends TranscriptionState {
+  final String title;
+
+  const SavingTranscription({required this.title});
+
+  @override
+  List<Object?> get props => [title];
+}
+
 /// Partitura guardada en base de datos.
 final class TranscriptionSaved extends TranscriptionState {
   final String scoreId;

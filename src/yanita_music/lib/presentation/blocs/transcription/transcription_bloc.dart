@@ -110,7 +110,7 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
           lastFilePath: event.filePath,
         ));
       },
-      (noteEvents) {
+      (noteEvents) async {
         // Detectar polifonía
         var isPolyphonic = false;
         for (var i = 0; i < noteEvents.length - 1 && !isPolyphonic; i++) {
@@ -123,13 +123,42 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
           }
         }
 
-        emit(TranscriptionSuccess(
-          filePath: event.filePath,
-          noteCount: noteEvents.length,
-          duration: audioFeatures.audioDuration,
-          isPolyphonic: isPolyphonic,
+        // --- AUTOMATIZACIÓN: Guardar automáticamente en base de datos ---
+        final title = fileName.replaceAll(RegExp(r'\.[^.]+$'), '');
+        emit(SavingTranscription(title: title));
+
+        final now = DateTime.now();
+        final score = Score(
+          id: const Uuid().v4(),
+          title: title,
+          audioPath: event.filePath,
           noteEvents: noteEvents,
-        ));
+          duration: audioFeatures.audioDuration,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        final saveResult = await _saveScoreUseCase(SaveScoreParams(score: score));
+
+        saveResult.fold(
+          (failure) => emit(TranscriptionError(
+            message: 'Error al auto-guardar: ${failure.message}',
+            lastFilePath: event.filePath,
+          )),
+          (savedScore) {
+            emit(TranscriptionSuccess(
+              filePath: event.filePath,
+              noteCount: noteEvents.length,
+              duration: audioFeatures.audioDuration,
+              isPolyphonic: isPolyphonic,
+              noteEvents: noteEvents,
+            ));
+            emit(TranscriptionSaved(
+              scoreId: savedScore.id,
+              title: savedScore.title,
+            ));
+          },
+        );
       },
     );
   }
