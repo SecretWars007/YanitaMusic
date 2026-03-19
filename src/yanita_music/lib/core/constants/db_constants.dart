@@ -18,6 +18,7 @@ class DbConstants {
   static const String colCreatedAt = 'created_at';
   static const String colUpdatedAt = 'updated_at';
   static const String colChecksum = 'checksum';
+  static const String colSpectrogramData = 'spectrogram_data';
 
   // Tabla del cancionero
   static const String songbookTable = 'songbook';

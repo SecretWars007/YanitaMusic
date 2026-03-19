@@ -69,6 +69,8 @@ class TranscriptionPage extends StatelessWidget {
                 // Área de upload
                 if (state is TranscriptionInitial) _buildUploadCard(context),
 
+                if (state is TranscriptionError) _buildErrorCard(context, state),
+
                 if (state is AudioFileSelected)
                   _buildFileSelectedCard(context, state),
 
@@ -381,6 +383,54 @@ class TranscriptionPage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorCard(BuildContext context, TranscriptionError state) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'Error al procesar archivo',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state.message,
+              style: const TextStyle(color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => context.read<TranscriptionBloc>().add(
+                    ResetTranscription(),
+                  ),
+                  icon: const Icon(Icons.file_upload),
+                  label: const Text('Otro archivo'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => context.read<TranscriptionBloc>().add(
+                    RetryTranscription(),
+                  ),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reintentar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF9800),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

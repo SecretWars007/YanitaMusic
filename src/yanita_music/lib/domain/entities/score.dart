@@ -15,6 +15,7 @@ class Score extends Equatable {
   final String? midiData;
   final String? musicXml;
   final String? checksum;
+  final String? spectrogramData;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -28,6 +29,7 @@ class Score extends Equatable {
     this.midiData,
     this.musicXml,
     this.checksum,
+    this.spectrogramData,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -58,6 +60,7 @@ class Score extends Equatable {
     String? midiData,
     String? musicXml,
     String? checksum,
+    String? spectrogramData,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -71,6 +74,7 @@ class Score extends Equatable {
       midiData: midiData ?? this.midiData,
       musicXml: musicXml ?? this.musicXml,
       checksum: checksum ?? this.checksum,
+      spectrogramData: spectrogramData ?? this.spectrogramData,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -13,6 +13,7 @@ class ScoreModel extends Score {
     super.midiData,
     super.musicXml,
     super.checksum,
+    super.spectrogramData,
     required super.createdAt,
     required super.updatedAt,
   });
@@ -31,6 +32,7 @@ class ScoreModel extends Score {
       midiData: map['midi_data'] as String?,
       musicXml: map['music_xml'] as String?,
       checksum: map['checksum'] as String?,
+      spectrogramData: map['spectrogram_data'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );
@@ -51,6 +53,7 @@ class ScoreModel extends Score {
       'midi_data': midiData,
       'music_xml': musicXml,
       'checksum': checksum,
+      'spectrogram_data': spectrogramData,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -67,6 +70,7 @@ class ScoreModel extends Score {
       midiData: entity.midiData,
       musicXml: entity.musicXml,
       checksum: entity.checksum,
+      spectrogramData: entity.spectrogramData,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     );

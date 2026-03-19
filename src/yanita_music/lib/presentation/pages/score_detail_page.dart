@@ -1,135 +1,275 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:yanita_music/domain/entities/score.dart';
+import 'package:yanita_music/presentation/widgets/score_stave_visualizer.dart';
 
-/// Página de detalle de una partitura transcrita.
-class ScoreDetailPage extends StatelessWidget {
+/// Página de detalle de una partitura transcrita con controles de reproducción.
+class ScoreDetailPage extends StatefulWidget {
   final Score score;
 
   const ScoreDetailPage({super.key, required this.score});
 
   @override
+  State<ScoreDetailPage> createState() => _ScoreDetailPageState();
+}
+
+class _ScoreDetailPageState extends State<ScoreDetailPage> with SingleTickerProviderStateMixin {
+  late AudioPlayer _audioPlayer;
+  late Ticker _ticker;
+  bool _isPlaying = false;
+  bool _isLoading = false;
+  bool _showNoteNames = true;
+  double _currentTime = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer = AudioPlayer();
+    _initAudio();
+    
+    // Ticker para actualización suave del pentagrama (60fps)
+    _ticker = createTicker((elapsed) {
+      if (_isPlaying) {
+        final position = _audioPlayer.position.inMilliseconds / 1000.0;
+        if (mounted && position != _currentTime) {
+          setState(() {
+            _currentTime = position;
+          });
+        }
+      }
+    });
+  }
+
+  Future<void> _initAudio() async {
+    if (widget.score.audioPath.isEmpty) return;
+
+    setState(() => _isLoading = true);
+    try {
+      if (widget.score.audioPath.startsWith('http')) {
+        await _audioPlayer.setUrl(widget.score.audioPath);
+      } else if (widget.score.audioPath.startsWith('assets/')) {
+        await _audioPlayer.setAsset(widget.score.audioPath);
+      } else {
+        await _audioPlayer.setFilePath(widget.score.audioPath);
+      }
+
+      _audioPlayer.playerStateStream.listen((state) {
+        if (mounted) {
+          setState(() {
+            _isPlaying = state.playing;
+            if (_isPlaying) {
+              _ticker.start();
+            } else {
+              _ticker.stop();
+            }
+            
+            if (state.processingState == ProcessingState.completed) {
+              _isPlaying = false;
+              _ticker.stop();
+              _audioPlayer.seek(Duration.zero);
+              _audioPlayer.pause();
+              setState(() => _currentTime = 0.0);
+            }
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Error inicializando audio: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  void _togglePlayback() {
+    if (_isPlaying) {
+      _audioPlayer.pause();
+    } else {
+      _audioPlayer.play();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(score.title)),
+      appBar: AppBar(
+        title: Text(widget.score.title, style: GoogleFonts.inter(fontSize: 18)),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _showNoteNames ? Icons.label : Icons.label_off_outlined,
+              color: _showNoteNames ? Theme.of(context).colorScheme.primary : null,
+            ),
+            tooltip: 'Mostrar nombres de notas',
+            onPressed: () => setState(() => _showNoteNames = !_showNoteNames),
+          ),
+          IconButton(icon: const Icon(Icons.share_outlined), onPressed: () {}),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Información general
+            // Visualización de Notas (Pentagrama)
+            ScoreStaveVisualizer(
+              score: widget.score,
+              currentTime: _currentTime,
+              isPlaying: _isPlaying,
+              showNoteNames: _showNoteNames,
+            ),
+            const SizedBox(height: 24),
+
+            // Controles de Reproducción
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        _isLoading
+                            ? const SizedBox(
+                                width: 48,
+                                height: 48,
+                                child: Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : IconButton(
+                                icon: Icon(
+                                  _isPlaying
+                                      ? Icons.pause_circle_filled
+                                      : Icons.play_circle_filled,
+                                  size: 48,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                onPressed: _togglePlayback,
+                              ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 4,
+                                  thumbShape: const RoundSliderThumbShape(
+                                    enabledThumbRadius: 6,
+                                  ),
+                                  activeTrackColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary,
+                                  inactiveTrackColor: Colors.white10,
+                                ),
+                                child: Slider(
+                                  value: (_currentTime / widget.score.duration)
+                                      .clamp(0.0, 1.0),
+                                  onChanged: (value) {
+                                    final position = Duration(
+                                      milliseconds:
+                                          (value * widget.score.duration * 1000)
+                                              .toInt(),
+                                    );
+                                    _audioPlayer.seek(position);
+                                    setState(() {
+                                      _currentTime = value * widget.score.duration;
+                                    });
+                                  },
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      _formatTime(_currentTime),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white54,
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatTime(widget.score.duration),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Información general con iconos para mayor "uniformidad"
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Información de la Partitura',
-                      style: Theme.of(context).textTheme.headlineMedium,
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Detalles de la Transcripción',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    const Divider(height: 24),
-                    _buildDetailRow(context, 'Título', score.title),
+                    const Divider(height: 32),
                     _buildDetailRow(
                       context,
-                      'Duración',
-                      '${score.duration.toStringAsFixed(1)} segundos',
-                    ),
-                    _buildDetailRow(
-                      context,
+                      Icons.music_note,
                       'Notas detectadas',
-                      '${score.noteCount}',
+                      '${widget.score.noteCount}',
                     ),
                     _buildDetailRow(
                       context,
+                      Icons.speed,
                       'Tempo',
-                      score.tempo != null
-                          ? '${score.tempo!.toStringAsFixed(0)} BPM'
+                      widget.score.tempo != null
+                          ? '${widget.score.tempo!.toStringAsFixed(0)} BPM'
                           : 'No detectado',
                     ),
                     _buildDetailRow(
                       context,
+                      Icons.layers,
                       'Tipo',
-                      score.isPolyphonic ? 'Polifónica' : 'Monofónica',
+                      widget.score.isPolyphonic ? 'Polifónica' : 'Monofónica',
                     ),
                     _buildDetailRow(
                       context,
-                      'Creada',
-                      _formatDate(score.createdAt),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Visualización de notas
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Notas Detectadas',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const Divider(height: 24),
-                    if (score.noteEvents.isEmpty)
-                      const Text('Sin notas registradas')
-                    else
-                      SizedBox(
-                        height: 200,
-                        child: _buildPianoRoll(context),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Lista de notas
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Eventos de Nota (primeros 20)',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    ...score.noteEvents.take(20).map(
-                      (note) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              note.noteName,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.secondary,
-                              ),
-                            ),
-                            Text(
-                              '${note.startTime.toStringAsFixed(2)}s - '
-                              '${note.endTime.toStringAsFixed(2)}s',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white54,
-                              ),
-                            ),
-                            Text(
-                              'vel: ${note.velocity}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white38,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      Icons.calendar_today,
+                      'Fecha',
+                      _formatDate(widget.score.createdAt),
                     ),
                   ],
                 ),
@@ -141,29 +281,15 @@ class ScoreDetailPage extends StatelessWidget {
     );
   }
 
-  /// Visualización tipo piano roll simplificada.
-  Widget _buildPianoRoll(BuildContext context) {
-    if (score.noteEvents.isEmpty) {
-      return const Center(child: Text('Sin datos'));
-    }
-
-    return CustomPaint(
-      painter: _PianoRollPainter(
-        noteEvents: score.noteEvents,
-        accentColor: Theme.of(context).colorScheme.primary,
-        goldColor: Theme.of(context).colorScheme.secondary,
-      ),
-      size: const Size(double.infinity, 200),
-    );
-  }
-
-  Widget _buildDetailRow(BuildContext context, String label, String value) {
+  Widget _buildDetailRow(BuildContext context, IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white54)),
+          Icon(icon, size: 18, color: Colors.white54),
+          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(color: Colors.white70)),
+          const Spacer(),
           Text(
             value,
             style: const TextStyle(
@@ -177,78 +303,12 @@ class ScoreDetailPage extends StatelessWidget {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} '
-        '${date.hour.toString().padLeft(2, "0")}:'
-        '${date.minute.toString().padLeft(2, "0")}';
-  }
-}
-
-class _PianoRollPainter extends CustomPainter {
-  final List noteEvents;
-  final Color accentColor;
-  final Color goldColor;
-
-  _PianoRollPainter({
-    required this.noteEvents,
-    required this.accentColor,
-    required this.goldColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (noteEvents.isEmpty) return;
-
-    // Encontrar rangos
-    double minTime = double.infinity;
-    double maxTime = 0;
-    int minNote = 127;
-    int maxNote = 0;
-
-    for (final note in noteEvents) {
-      if (note.startTime < minTime) minTime = note.startTime;
-      if (note.endTime > maxTime) maxTime = note.endTime;
-      if (note.midiNote < minNote) minNote = note.midiNote;
-      if (note.midiNote > maxNote) maxNote = note.midiNote;
-    }
-
-    final timeRange = maxTime - minTime;
-    final noteRange = (maxNote - minNote + 1).clamp(1, 88);
-    final noteHeight = size.height / noteRange;
-
-    // Dibujar fondo con líneas de guía
-    final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.05)
-      ..strokeWidth = 0.5;
-
-    for (var i = 0; i <= noteRange; i++) {
-      final y = i * noteHeight;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    // Dibujar notas
-    for (final note in noteEvents) {
-      final x = timeRange > 0
-          ? ((note.startTime - minTime) / timeRange * size.width)
-          : 0.0;
-      final w = timeRange > 0
-          ? (note.duration / timeRange * size.width).clamp(2.0, size.width)
-          : 4.0;
-      final y = (maxNote - note.midiNote) * noteHeight;
-
-      final notePaint = Paint()
-        ..color = accentColor.withValues(alpha: 0.8)
-        ..style = PaintingStyle.fill;
-
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(x, y, w, noteHeight * 0.8),
-          const Radius.circular(2),
-        ),
-        notePaint,
-      );
-    }
+    return '${date.day}/${date.month}/${date.year}';
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  String _formatTime(double seconds) {
+    final int minutes = (seconds / 60).floor();
+    final int remainingSeconds = (seconds % 60).floor();
+    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
 }

@@ -66,6 +66,7 @@ class DatabaseHelper {
         ${DbConstants.colDuration} REAL NOT NULL DEFAULT 0.0,
         ${DbConstants.colTempo} REAL,
         ${DbConstants.colChecksum} TEXT,
+        ${DbConstants.colSpectrogramData} TEXT,
         ${DbConstants.colCreatedAt} TEXT NOT NULL,
         ${DbConstants.colUpdatedAt} TEXT NOT NULL
       )
@@ -132,7 +133,15 @@ class DatabaseHelper {
   /// Maneja migraciones de esquema entre versiones.
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     _logger.i('Migrando base de datos de v$oldVersion a v$newVersion');
-    // Futuras migraciones aquí
+
+    if (oldVersion < 2) {
+      // v2: Agregar columna de espectrograma a tabla de partituras
+      await db.execute('''
+        ALTER TABLE ${DbConstants.scoresTable}
+        ADD COLUMN ${DbConstants.colSpectrogramData} TEXT
+      ''');
+      _logger.i('Migración v2: columna spectrogram_data agregada');
+    }
   }
 
   /// Cierra la conexión a la base de datos.

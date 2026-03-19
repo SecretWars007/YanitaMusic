@@ -26,12 +26,12 @@ class ScoreLibraryBloc extends Bloc<ScoreLibraryEvent, ScoreLibraryState> {
     required ExportMidiUseCase exportMidiUseCase,
     required ExportMusicXmlUseCase exportMusicXmlUseCase,
     required SaveScoreUseCase saveScoreUseCase,
-  })  : _getScoresUseCase = getScoresUseCase,
-        _deleteScoreUseCase = deleteScoreUseCase,
-        _exportMidiUseCase = exportMidiUseCase,
-        _exportMusicXmlUseCase = exportMusicXmlUseCase,
-        _saveScoreUseCase = saveScoreUseCase,
-        super(ScoreLibraryInitial()) {
+  }) : _getScoresUseCase = getScoresUseCase,
+       _deleteScoreUseCase = deleteScoreUseCase,
+       _exportMidiUseCase = exportMidiUseCase,
+       _exportMusicXmlUseCase = exportMusicXmlUseCase,
+       _saveScoreUseCase = saveScoreUseCase,
+       super(ScoreLibraryInitial()) {
     on<LoadScores>(_onLoadScores);
     on<DeleteScoreEvent>(_onDeleteScore);
     on<ExportScoreAsMidi>(_onExportMidi);
@@ -49,13 +49,25 @@ class ScoreLibraryBloc extends Bloc<ScoreLibraryEvent, ScoreLibraryState> {
     await result.fold(
       (failure) async => emit(ScoreLibraryError(message: failure.message)),
       (scores) async {
-        if (scores.isEmpty) {
+        final List<Score> finalScores = List.from(scores);
+
+        // Check if demo score exists and needs URL update
+        for (int i = 0; i < finalScores.length; i++) {
+          final s = finalScores[i];
+          if (s.id == 'demo-ode-to-joy' && s.duration < 60.0) {
+            final refreshedDemo = DemoScoreGenerator.generateOdeToJoy();
+            await _saveScoreUseCase(SaveScoreParams(score: refreshedDemo));
+            finalScores[i] = refreshedDemo;
+          }
+        }
+
+        if (finalScores.isEmpty) {
           // Si no hay partituras, generamos el demo y lo guardamos físicamente en DB
           final demo = DemoScoreGenerator.generateOdeToJoy();
           await _saveScoreUseCase(SaveScoreParams(score: demo));
           emit(ScoreLibraryLoaded(scores: [demo]));
         } else {
-          emit(ScoreLibraryLoaded(scores: scores));
+          emit(ScoreLibraryLoaded(scores: finalScores));
         }
       },
     );
@@ -85,10 +97,8 @@ class ScoreLibraryBloc extends Bloc<ScoreLibraryEvent, ScoreLibraryState> {
 
     result.fold(
       (failure) => emit(ScoreLibraryError(message: failure.message)),
-      (filePath) => emit(ScoreExportSuccess(
-        filePath: filePath,
-        format: 'MIDI',
-      )),
+      (filePath) =>
+          emit(ScoreExportSuccess(filePath: filePath, format: 'MIDI')),
     );
   }
 
@@ -102,10 +112,8 @@ class ScoreLibraryBloc extends Bloc<ScoreLibraryEvent, ScoreLibraryState> {
 
     result.fold(
       (failure) => emit(ScoreLibraryError(message: failure.message)),
-      (filePath) => emit(ScoreExportSuccess(
-        filePath: filePath,
-        format: 'MusicXML',
-      )),
+      (filePath) =>
+          emit(ScoreExportSuccess(filePath: filePath, format: 'MusicXML')),
     );
   }
 }

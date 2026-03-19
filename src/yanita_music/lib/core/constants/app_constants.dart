@@ -8,7 +8,7 @@ class AppConstants {
   static const String appName = 'PianoScribe';
   static const String appVersion = '1.0.0';
   static const String dbName = 'piano_scribe.db';
-  static const int dbVersion = 1;
+  static const int dbVersion = 2;
 
   // Modelo TFLite
   static const String tfliteModelPath =

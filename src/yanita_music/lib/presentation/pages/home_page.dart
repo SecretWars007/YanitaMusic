@@ -123,6 +123,8 @@ class _DashboardViewState extends State<_DashboardView> with SingleTickerProvide
       if (score.audioPath.isNotEmpty) {
         if (score.audioPath.startsWith('http')) {
           await _audioPlayer.setUrl(score.audioPath);
+        } else if (score.audioPath.startsWith('assets/')) {
+          await _audioPlayer.setAsset(score.audioPath);
         } else {
           await _audioPlayer.setFilePath(score.audioPath);
         }
@@ -134,13 +136,19 @@ class _DashboardViewState extends State<_DashboardView> with SingleTickerProvide
           _playbackController.duration = Duration(
             milliseconds: (score.duration * 1000).toInt(),
           );
+          _isPlaying = true;
         });
+        
+        // Auto-reproducir la partitura al cargar en inicio
+        _playbackController.forward();
+        _audioPlayer.play();
       }
     } catch (e) {
       debugPrint('Error loading audio: $e');
       if (mounted) {
         setState(() {
           _isAudioLoading = false;
+          _isPlaying = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error cargando audio: $e')),

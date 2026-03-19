@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:equatable/equatable.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:yanita_music/domain/entities/note_event.dart';
 import 'package:yanita_music/domain/entities/score.dart';
@@ -128,12 +131,34 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
         emit(SavingTranscription(title: title));
 
         final now = DateTime.now();
+        
+        // Mover el archivo a un almacenamiento persistente
+        String permanentAudioPath = event.filePath;
+        try {
+          final appDocDir = await getApplicationDocumentsDirectory();
+          final String fileExtension = fileName.split('.').last;
+          final String newFileName = '${const Uuid().v4()}.$fileExtension';
+          final File newAudioFile = File('${appDocDir.path}/$newFileName');
+          
+          await File(event.filePath).copy(newAudioFile.path);
+          permanentAudioPath = newAudioFile.path;
+        } catch (e) {
+          emit(TranscriptionError(
+            message: 'Error copiando audio a almacenamiento persistente: $e',
+            lastFilePath: event.filePath,
+          ));
+          return;
+        }
+
+        // Serializar espectrograma para almacenar en DB
+        final spectrogramJson = jsonEncode(audioFeatures.melSpectrogram);
         final score = Score(
           id: const Uuid().v4(),
           title: title,
-          audioPath: event.filePath,
+          audioPath: permanentAudioPath,
           noteEvents: noteEvents,
           duration: audioFeatures.audioDuration,
+          spectrogramData: spectrogramJson,
           createdAt: now,
           updatedAt: now,
         );

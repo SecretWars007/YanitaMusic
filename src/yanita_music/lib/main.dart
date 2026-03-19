@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:yanita_music/injection_container.dart' as di;
 import 'package:yanita_music/presentation/blocs/transcription/transcription_bloc.dart';
 import 'package:yanita_music/presentation/blocs/score_library/score_library_bloc.dart';
@@ -10,6 +11,9 @@ import 'package:yanita_music/presentation/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // [OFFLINE OPTIMIZATION]: Desactivar descarga de fuentes en tiempo de ejecución
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Inicializar inyección de dependencias
   await di.initDependencies();

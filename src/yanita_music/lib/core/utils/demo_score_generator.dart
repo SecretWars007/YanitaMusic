@@ -59,12 +59,28 @@ class DemoScoreGenerator {
       _note(15.0, 16.0, 60),
     ];
 
+    // Llenar 64 segundos repitiendo el bloque de 16 segundos 4 veces
+    final List<NoteEvent> extendedNotes = <NoteEvent>[];
+    for (int i = 0; i < 4; i++) {
+      final double offset = i * 16.0;
+      for (final note in notes) {
+        extendedNotes.add(
+          NoteEvent(
+            startTime: note.startTime + offset,
+            endTime: note.endTime + offset,
+            midiNote: note.midiNote,
+            velocity: note.velocity,
+          ),
+        );
+      }
+    }
+
     return Score(
       id: 'demo-ode-to-joy',
       title: 'HIMNO A LA ALEGRÍA (Demo)',
-      audioPath: 'https://github.com/rafaelreis-hotmart/Audio-Samples/raw/master/piano.mp3',
-      noteEvents: notes,
-      duration: 16.0,
+      audioPath: 'https://www.mfiles.co.uk/mp3-downloads/beethoven-symphony9-4-ode-to-joy-piano-solo.mp3',
+      noteEvents: extendedNotes,
+      duration: 64.0, // Cambiado de 16 a 64
       createdAt: now,
       updatedAt: now,
     );

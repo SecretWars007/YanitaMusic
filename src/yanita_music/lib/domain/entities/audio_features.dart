@@ -1,12 +1,13 @@
 import 'package:equatable/equatable.dart';
+import 'dart:typed_data';
 
 /// Entidad que representa las características espectrales del audio.
 ///
 /// Contiene el espectrograma Mel generado por el módulo C++ FFI,
 /// listo para ser consumido por el modelo TFLite.
 class AudioFeatures extends Equatable {
-  /// Espectrograma Mel como matriz [frames x melBins].
-  final List<List<double>> melSpectrogram;
+  /// Espectrograma Mel como buffer plano [frames * melBins].
+  final Float32List melSpectrogram;
 
   /// Número total de frames temporales.
   final int numFrames;

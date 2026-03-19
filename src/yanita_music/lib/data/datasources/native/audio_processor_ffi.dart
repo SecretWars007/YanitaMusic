@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:yanita_music/core/error/exceptions.dart';
@@ -98,7 +99,7 @@ class AudioProcessorFFI {
   /// [filePath] Ruta absoluta al archivo MP3/WAV.
   /// Retorna una tupla con (espectrograma, numFrames, numMelBins, duración).
   ({
-    List<List<double>> spectrogram,
+    Float32List spectrogram,
     int numFrames,
     int numMelBins,
     double duration,
@@ -134,24 +135,16 @@ class AudioProcessorFFI {
       final duration = outDuration.value;
 
       _logger.i(
-        'Audio procesado: $numFrames frames, $numMelBins mel bins, '
+        'Audio procesado (Flat Buffer): $numFrames frames, $numMelBins mel bins, '
         '${duration.toStringAsFixed(2)}s',
       );
 
-      // Convertir buffer plano a matriz 2D
+      // [SENIOR OPTIMIZATION]: Evitar la penalización FFI y GC.
+      // Creamos un Float32List que COPIA los datos de una vez (congelamos el estado).
+      // .asTypedList(n) crea una vista, pero como vamos a liberar resultPtr, 
+      // necesitamos copiar los datos a Dart antes de llamar a _freeBuffer.
       final totalElements = numFrames * numMelBins;
-      final spectrogram = <List<double>>[];
-
-      for (var frame = 0; frame < numFrames; frame++) {
-        final row = <double>[];
-        for (var bin = 0; bin < numMelBins; bin++) {
-          final index = frame * numMelBins + bin;
-          if (index < totalElements) {
-            row.add(resultPtr[index]);
-          }
-        }
-        spectrogram.add(row);
-      }
+      final spectrogram = Float32List.fromList(resultPtr.asTypedList(totalElements));
 
       // Liberar memoria nativa
       _freeBuffer(resultPtr);
