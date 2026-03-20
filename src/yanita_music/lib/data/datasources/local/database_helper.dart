@@ -3,6 +3,8 @@ import 'package:path/path.dart';
 import 'package:yanita_music/core/constants/app_constants.dart';
 import 'package:yanita_music/core/constants/db_constants.dart';
 import 'package:logger/logger.dart';
+import 'package:uuid/uuid.dart';
+
 
 /// Helper singleton para gestión de la base de datos SQLite.
 ///
@@ -128,7 +130,76 @@ class DatabaseHelper {
     ''');
 
     _logger.i('Esquema de base de datos creado correctamente');
+    
+    // Insertar datos de prueba iniciales
+    await _seedData(db);
   }
+
+  /// Inserta datos de prueba requeridos por el usuario (Himno a la Alegría).
+  Future<void> _seedData(Database db) async {
+    _logger.i('Sembrando datos de prueba iniciales...');
+    
+    final scoreId = const Uuid().v4();
+    final songId = const Uuid().v4();
+    final now = DateTime.now().toIso8601String();
+
+    const odeToJoyXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <work><work-title>Himno a la Alegría</work-title></work>
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <direction><sound tempo="120"/></direction>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>''';
+
+    // Insertar Score
+    await db.insert(DbConstants.scoresTable, {
+      DbConstants.colId: scoreId,
+      DbConstants.colTitle: 'Himno a la Alegría (Demo)',
+      DbConstants.colAudioPath: 'assets/audio/ode_to_joy.mp3',
+      DbConstants.colNoteEvents: '[]', // Se cargará desde MusicXML
+      DbConstants.colMusicXml: odeToJoyXml,
+      DbConstants.colDuration: 4.0,
+      DbConstants.colTempo: 120.0,
+      DbConstants.colCreatedAt: now,
+      DbConstants.colUpdatedAt: now,
+    });
+
+    // Insertar en Cancionero
+    await db.insert(DbConstants.songbookTable, {
+      DbConstants.colSongId: songId,
+      DbConstants.colSongTitle: 'Himno a la Alegría',
+      DbConstants.colArtist: 'Ludwig van Beethoven',
+      DbConstants.colScoreId: scoreId,
+      DbConstants.colCategory: 'Clásica',
+      DbConstants.colDifficulty: 2,
+      DbConstants.colIsFavorite: 1,
+      DbConstants.colSongCreatedAt: now,
+    });
+
+    _logger.i('Datos de prueba sembrados exitosamente.');
+  }
+
 
   /// Maneja migraciones de esquema entre versiones.
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {

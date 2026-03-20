@@ -8,6 +8,9 @@ import 'package:yanita_music/domain/entities/note_event.dart';
 /// Encapsula la lógica de inferencia TFLite con el modelo
 /// Onsets and Frames para transcripción AMT.
 abstract class TranscriptionRepository {
+  /// Stream de estados en tiempo real.
+  Stream<String> get statusStream;
+
   /// Inicializa el modelo TFLite. Debe llamarse una vez al inicio.
   Future<Either<Failure, void>> initializeModel();
 

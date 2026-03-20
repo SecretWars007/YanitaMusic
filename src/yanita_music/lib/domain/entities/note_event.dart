@@ -55,6 +55,22 @@ class NoteEvent extends Equatable {
     return '${noteNames[noteIndex]}$octave';
   }
 
+  NoteEvent copyWith({
+    double? startTime,
+    double? endTime,
+    int? midiNote,
+    int? velocity,
+    double? confidence,
+  }) {
+    return NoteEvent(
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      midiNote: midiNote ?? this.midiNote,
+      velocity: velocity ?? this.velocity,
+      confidence: confidence ?? this.confidence,
+    );
+  }
+
   @override
   List<Object?> get props => [
     startTime,

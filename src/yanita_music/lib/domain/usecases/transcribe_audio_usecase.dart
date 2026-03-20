@@ -12,17 +12,17 @@ import 'package:yanita_music/domain/repositories/transcription_repository.dart';
 /// el espectrograma Mel para detectar notas de piano.
 class TranscribeAudioUseCase
     extends UseCase<List<NoteEvent>, TranscribeAudioParams> {
-  final TranscriptionRepository _transcriptionRepository;
+  final TranscriptionRepository transcriptionRepository;
 
   TranscribeAudioUseCase({
-    required TranscriptionRepository transcriptionRepository,
-  }) : _transcriptionRepository = transcriptionRepository;
+    required this.transcriptionRepository,
+  });
 
   @override
   Future<Either<Failure, List<NoteEvent>>> call(
     TranscribeAudioParams params,
   ) async {
-    return await _transcriptionRepository.transcribe(params.audioFeatures);
+    return await transcriptionRepository.transcribe(params.audioFeatures);
   }
 }
 

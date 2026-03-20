@@ -22,6 +22,10 @@ class _ScoreDetailPageState extends State<ScoreDetailPage> with SingleTickerProv
   bool _isLoading = false;
   bool _showNoteNames = true;
   double _currentTime = 0.0;
+  double _staffScale = 1.0;
+  int _fpsLimit = 30;
+  Duration _lastFrameTime = Duration.zero;
+
 
   @override
   void initState() {
@@ -29,17 +33,22 @@ class _ScoreDetailPageState extends State<ScoreDetailPage> with SingleTickerProv
     _audioPlayer = AudioPlayer();
     _initAudio();
     
-    // Ticker para actualización suave del pentagrama (60fps)
+    // Ticker para actualización del pentagrama con control de FPS
     _ticker = createTicker((elapsed) {
       if (_isPlaying) {
-        final position = _audioPlayer.position.inMilliseconds / 1000.0;
-        if (mounted && position != _currentTime) {
-          setState(() {
-            _currentTime = position;
-          });
+        final frameInterval = Duration(milliseconds: (1000 / _fpsLimit).round());
+        if (elapsed - _lastFrameTime >= frameInterval) {
+          _lastFrameTime = elapsed;
+          final position = _audioPlayer.position.inMilliseconds / 1000.0;
+          if (mounted && position != _currentTime) {
+            setState(() {
+              _currentTime = position;
+            });
+          }
         }
       }
     });
+
   }
 
   Future<void> _initAudio() async {
@@ -125,7 +134,9 @@ class _ScoreDetailPageState extends State<ScoreDetailPage> with SingleTickerProv
               currentTime: _currentTime,
               isPlaying: _isPlaying,
               showNoteNames: _showNoteNames,
+              staffScale: _staffScale,
             ),
+
             const SizedBox(height: 24),
 
             // Controles de Reproducción
@@ -223,7 +234,39 @@ class _ScoreDetailPageState extends State<ScoreDetailPage> with SingleTickerProv
                 ),
               ),
             ),
+            // Controles de Visualización (Zoom y FPS)
+            Card(
+
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _buildSlider(
+                      label: 'Tamaño del Pentagrama',
+                      icon: Icons.zoom_in,
+                      value: _staffScale,
+                      min: 0.5,
+                      max: 2.0,
+                      onChanged: (val) => setState(() => _staffScale = val),
+                      secondaryLabel: '${(_staffScale * 100).toInt()}%',
+                    ),
+                    const Divider(height: 1),
+                    _buildSlider(
+                      label: 'Límite de FPS',
+                      icon: Icons.speed,
+                      value: _fpsLimit.toDouble(),
+                      min: 10,
+                      max: 60,
+                      onChanged: (val) => setState(() => _fpsLimit = val.toInt()),
+                      secondaryLabel: '$_fpsLimit FPS',
+
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
+
 
             // Información general con iconos para mayor "uniformidad"
             Card(
@@ -311,4 +354,44 @@ class _ScoreDetailPageState extends State<ScoreDetailPage> with SingleTickerProv
     final int remainingSeconds = (seconds % 60).floor();
     return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
   }
+
+  Widget _buildSlider({
+    required String label,
+    required IconData icon,
+    required double value,
+    required double min,
+    required double max,
+    required ValueChanged<double> onChanged,
+    required String secondaryLabel,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+              const Spacer(),
+              Text(
+                secondaryLabel,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: value,
+            min: min,
+            max: max,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
 }
+

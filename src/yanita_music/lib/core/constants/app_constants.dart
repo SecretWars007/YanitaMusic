@@ -44,4 +44,7 @@ class AppConstants {
   static const double monophonicFTarget = 0.75;
   static const double polyphonicFTarget = 0.60;
   static const double onsetToleranceMs = 50.0;
+
+  // Optimización de procesamiento
+  static const int maxParallelIsolates = 2; // Límite para evitar OOM (Salida de memoria)
 }

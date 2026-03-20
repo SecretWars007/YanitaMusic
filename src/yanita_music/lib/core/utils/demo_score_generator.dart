@@ -78,10 +78,70 @@ class DemoScoreGenerator {
     return Score(
       id: 'demo-ode-to-joy',
       title: 'HIMNO A LA ALEGRÍA (Demo)',
-      audioPath: 'https://www.mfiles.co.uk/mp3-downloads/beethoven-symphony9-4-ode-to-joy-piano-solo.mp3',
+      audioPath: 'assets/audio/ode_to_joy.mp3',
       noteEvents: extendedNotes,
       duration: 64.0, // Cambiado de 16 a 64
       createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  /// Genera la melodía de "Busca lo más vital" (The Bare Necessities).
+  static Score generateTheBareNecessities() {
+    final now = DateTime.now();
+    final notes = <NoteEvent>[
+      // Frase 1: F G A F
+      _note(0.0, 0.5, 65),
+      _note(0.5, 1.0, 67),
+      _note(1.0, 1.5, 69),
+      _note(1.5, 2.0, 65),
+      
+      // Frase 2: G A F
+      _note(2.5, 3.0, 67),
+      _note(3.0, 3.5, 69),
+      _note(3.5, 4.0, 65),
+      
+      // Frase 3: C D C A F
+      _note(4.5, 5.0, 72),
+      _note(5.0, 5.5, 74),
+      _note(5.5, 6.0, 72),
+      _note(6.0, 6.5, 69),
+      _note(6.5, 7.0, 65),
+      
+      // Frase 4: G A F
+      _note(7.5, 8.0, 67),
+      _note(8.0, 8.5, 69),
+      _note(8.5, 9.0, 65),
+      
+      // Final frase: G F F
+      _note(9.5, 10.0, 67),
+      _note(10.0, 10.5, 65),
+      _note(10.5, 11.5, 65),
+    ];
+
+    // Loop de 64 segundos (aprox 4 repeticiones de un bloque de 16s)
+    final List<NoteEvent> extendedNotes = <NoteEvent>[];
+    for (int i = 0; i < 4; i++) {
+      final double offset = i * 16.0;
+      for (final note in notes) {
+        extendedNotes.add(
+          NoteEvent(
+            startTime: note.startTime + offset,
+            endTime: note.endTime + offset,
+            midiNote: note.midiNote,
+            velocity: note.velocity,
+          ),
+        );
+      }
+    }
+
+    return Score(
+      id: 'demo-bare-necessities',
+      title: 'BUSCA LO MÁS VITAL (EL LIBRO DE LA SELVA)',
+      audioPath: 'assets/audio/ode_to_joy.mp3', // Placeholder until another one is added
+      noteEvents: extendedNotes,
+      duration: 64.0,
+      createdAt: now.subtract(const Duration(minutes: 1)), // Ligeramente antes que el otro demo
       updatedAt: now,
     );
   }

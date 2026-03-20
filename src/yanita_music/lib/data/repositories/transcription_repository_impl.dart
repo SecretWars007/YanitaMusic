@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'dart:io';
+import 'dart:isolate';
+import 'package:flutter/services.dart';
 import 'package:dartz/dartz.dart';
 import 'package:yanita_music/core/constants/app_constants.dart';
 import 'package:yanita_music/core/error/failures.dart';
@@ -9,8 +11,10 @@ import 'package:yanita_music/domain/repositories/transcription_repository.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:logger/logger.dart';
 
+import 'package:yanita_music/core/mixins/status_stream_mixin.dart';
+
 /// Implementación del repositorio de transcripción musical optimizada para memoria.
-class TranscriptionRepositoryImpl implements TranscriptionRepository {
+class TranscriptionRepositoryImpl with StatusStreamMixin implements TranscriptionRepository {
   Interpreter? _interpreter;
   final Logger _logger = Logger();
   bool _isInitialized = false;
@@ -19,6 +23,7 @@ class TranscriptionRepositoryImpl implements TranscriptionRepository {
   @override
   Future<Either<Failure, void>> initializeModel() async {
     try {
+      sendStatus('Cargando modelo TFLite...');
       _logger.i('Cargando modelo TFLite desde: ${AppConstants.tfliteModelPath}');
 
       // Intento 1: Con GPU Delegate (si es Android)
@@ -31,6 +36,7 @@ class TranscriptionRepositoryImpl implements TranscriptionRepository {
             options: gpuOptions,
           );
           _isInitialized = true;
+          sendStatus('Modelo cargado exitosamente con GPU');
           _logger.i('Modelo cargado exitosamente con GPU');
           return const Right(null);
         } catch (e) {
@@ -60,6 +66,7 @@ class TranscriptionRepositoryImpl implements TranscriptionRepository {
       }
 
       _isInitialized = true;
+      sendStatus('Modelo TFLite listo (modo CPU)');
       _logger.i('Modelo TFLite cargado exitosamente (CPU mode)');
       return const Right(null);
 
@@ -101,26 +108,148 @@ class TranscriptionRepositoryImpl implements TranscriptionRepository {
         return Right(_generateMockNotes(audioFeatures.audioDuration));
       }
 
-      // [SENIOR OPTIMIZATION]: Procesamiento por Chunks para evitar OOM
-      final noteEvents = await _runInferenceChunked(audioFeatures);
+      final ByteData modelData = await rootBundle.load(AppConstants.tfliteModelPath);
+      final Uint8List modelBytes = modelData.buffer.asUint8List();
+
+      final int totalFrames = audioFeatures.numFrames;
       
-      _logger.i('Transcripción completada: ${noteEvents.length} notas');
-      return Right(noteEvents);
-    } on Exception catch (e) {
-      _logger.e('Error en ejecución de inferencia: $e');
+      // Decidir si paralelizar (solo si es suficientemente largo)
+      const int minFramesForParallel = 1000; // ~10 segundos mínimo
+      int numIsolates = 1;
+      if (totalFrames > minFramesForParallel) {
+        numIsolates = AppConstants.maxParallelIsolates;
+      }
+
+      if (numIsolates <= 1) {
+        // Procesamiento en un solo Isolate (como antes)
+        final noteEvents = await Isolate.run(() async {
+          final options = InterpreterOptions()..threads = 4;
+          final interpreter = Interpreter.fromBuffer(modelBytes, options: options);
+          try {
+            return await _runInferenceInternal(interpreter, audioFeatures);
+          } finally {
+            interpreter.close();
+          }
+        });
+        return Right(noteEvents);
+      } else {
+        // [SENIOR OPTIMIZATION]: Procesamiento PARALELO en N Isolates
+        _logger.i('Iniciando procesamiento paralelo en $numIsolates Isolates...');
+        sendStatus('Procesando en paralelo ($numIsolates núcleos)...');
+        
+        final List<Future<List<NoteEvent>>> isolateFutures = [];
+        final int framesPerPart = (totalFrames / numIsolates).round();
+
+        for (int i = 0; i < numIsolates; i++) {
+          final int startFrame = i * framesPerPart;
+          final int endFrame = (i == numIsolates - 1) ? totalFrames : (i + 1) * framesPerPart;
+          final int partFrames = endFrame - startFrame;
+          
+          _logger.d('Isolate $i: frames $startFrame a $endFrame');
+          
+          // Slice del espectrograma para esta parte
+          final partSpectrogram = Float32List(partFrames * audioFeatures.numMelBins);
+          partSpectrogram.setRange(
+            0, 
+            partFrames * audioFeatures.numMelBins, 
+            audioFeatures.melSpectrogram, 
+            startFrame * audioFeatures.numMelBins,
+          );
+
+          final partFeatures = audioFeatures.copyWith(
+            melSpectrogram: partSpectrogram,
+            numFrames: partFrames,
+            audioDuration: (partFrames / totalFrames) * audioFeatures.audioDuration,
+          );
+
+          isolateFutures.add(Isolate.run(() async {
+            final options = InterpreterOptions()..threads = 2; // Reducido de 4 a 2 por Isolate para evitar OOM
+            final interpreter = Interpreter.fromBuffer(modelBytes, options: options);
+            try {
+              final notes = await _runInferenceInternal(interpreter, partFeatures);
+              // Ajustar tiempos al offset global
+              final double timeOffset = (startFrame / totalFrames) * audioFeatures.audioDuration;
+              return notes.map((n) => n.copyWith(
+                startTime: n.startTime + timeOffset,
+                endTime: n.endTime + timeOffset,
+              )).toList();
+            } finally {
+              interpreter.close();
+            }
+          }));
+        }
+
+        sendStatus('Esperando resultados de motores de IA...');
+        final List<List<NoteEvent>> results = await Future.wait(isolateFutures);
+        
+        sendStatus('Uniendo fragmentos de partitura...');
+        // Unir y "coser" (stitch) las notas que cruzan fronteras
+        List<NoteEvent> mergedNotes = [];
+        for (var result in results) {
+          mergedNotes = _stitchNoteEvents(mergedNotes, result);
+        }
+
+        _logger.i('Transcripción paralela completada: ${mergedNotes.length} notas');
+        return Right(mergedNotes);
+      }
+    } catch (e, stackTrace) {
+      _logger.e('Error crítico en transcripción: $e\n$stackTrace');
       return Left(TranscriptionFailure(message: 'Error en transcripción: $e'));
     }
   }
 
-  /// Ejecuta la inferencia del modelo en trozos (chunks) para gestionar la memoria.
-  Future<List<NoteEvent>> _runInferenceChunked(AudioFeatures features) async {
-    const int chunkSize = 512; // ~16 segundos de audio por vez
+  /// Une dos listas de eventos de nota de forma eficiente O(N+M).
+  List<NoteEvent> _stitchNoteEvents(List<NoteEvent> first, List<NoteEvent> second) {
+    if (first.isEmpty) return second;
+    if (second.isEmpty) return first;
+
+    // Crear un mapa de las últimas notas activas por cada pitch en la primera lista
+    // Como la lista está ordenada por tiempo, simplemente guardamos el índice de la última aparición de cada nota
+    final Map<int, int> lastNoteIndexByPitch = {};
+    for (int i = 0; i < first.length; i++) {
+      lastNoteIndexByPitch[first[i].midiNote] = i;
+    }
+
+    final List<NoteEvent> result = List.from(first);
+    
+    // Tolerancia para considerar que dos notas son la misma (20ms)
+    const double seamTolerance = 0.02;
+
+    for (var secondNote in second) {
+      final int? lastIdx = lastNoteIndexByPitch[secondNote.midiNote];
+      bool merged = false;
+
+      if (lastIdx != null) {
+        final firstNote = result[lastIdx];
+        // Si la nota de la segunda parte empieza exactamente (o casi) donde termina la de la primera
+        if ((secondNote.startTime - firstNote.endTime).abs() < seamTolerance) {
+          result[lastIdx] = firstNote.copyWith(endTime: secondNote.endTime);
+          merged = true;
+        }
+      }
+
+      if (!merged) {
+        // Si no se fusionó, se añade como nota nueva y se actualiza el índice
+        result.add(secondNote);
+        lastNoteIndexByPitch[secondNote.midiNote] = result.length - 1;
+      }
+    }
+    
+    return result;
+  }
+
+  /// Versión interna y estática (o que no dependa de estado de clase externo) para correr en Isolate.
+  static Future<List<NoteEvent>> _runInferenceInternal(
+    Interpreter interpreter,
+    AudioFeatures features,
+  ) async {
+    const int chunkSize = 229; // Ajustado a 229 como sugiere AppConstants
     final int numFrames = features.numFrames;
     final int numMelBins = features.numMelBins;
     
-    final List<Float32List> allOnsets = [];
-    final List<Float32List> allFrames = [];
-    final List<Float32List> allVelocities = [];
+    final Float32List flatOnsets = Float32List(numFrames * 88);
+    final Float32List flatFrames = Float32List(numFrames * 88);
+    final Float32List flatVelocities = Float32List(numFrames * 88);
 
     for (int startFrame = 0; startFrame < numFrames; startFrame += chunkSize) {
       final int endFrame = (startFrame + chunkSize < numFrames) 
@@ -128,54 +257,40 @@ class TranscriptionRepositoryImpl implements TranscriptionRepository {
           : numFrames;
       final int currentChunkFrames = endFrame - startFrame;
 
-      _logger.d('Procesando chunk frames $startFrame a $endFrame...');
+      // [FIX]: Algunos modelos Onsets and Frames esperan 3D [1, frames, 229], no 4D
+      interpreter.resizeInputTensor(0, [1, currentChunkFrames, numMelBins]);
+      interpreter.allocateTensors();
 
-      // 1. Redimensionar intérprete para el chunk actual (tensor 0 es el input)
-      _interpreter!.resizeInputTensor(0, [1, currentChunkFrames, numMelBins, 1]);
-      _interpreter!.allocateTensors();
+      final int chunkSizeInFloats = currentChunkFrames * numMelBins;
+      final chunkInput = Float32List(chunkSizeInFloats);
+      chunkInput.setRange(0, chunkSizeInFloats, features.melSpectrogram, startFrame * numMelBins);
 
-      // 2. Preparar Input Buffer plano
-      final chunkInput = Float32List(currentChunkFrames * numMelBins);
-      for (int f = 0; f < currentChunkFrames; f++) {
-        final frameSourceOffset = (startFrame + f) * numMelBins;
-        final frameDestOffset = f * numMelBins;
-        chunkInput.setRange(
-          frameDestOffset, 
-          frameDestOffset + numMelBins, 
-          features.melSpectrogram.sublist(frameSourceOffset, frameSourceOffset + numMelBins)
-        );
-      }
-
-      // 3. Preparar Output Buffers planos
       final chunkOnsets = Float32List(currentChunkFrames * 88);
       final chunkFrames = Float32List(currentChunkFrames * 88);
       final chunkVelocities = Float32List(currentChunkFrames * 88);
+      final chunkOffsets = Float32List(currentChunkFrames * 88); // Opcional pero recomendado
 
       final outputs = {
-        0: chunkOnsets,
-        1: chunkFrames,
+        0: chunkOnsets, 
+        1: chunkFrames, 
         2: chunkVelocities,
+        3: chunkOffsets,
       };
+      interpreter.runForMultipleInputs([chunkInput], outputs);
 
-      // Ejecutar inferencia
-      _interpreter!.runForMultipleInputs([chunkInput], outputs);
-
-      // Copiar a la lista global de resultados
-      for (int f = 0; f < currentChunkFrames; f++) {
-        allOnsets.add(chunkOnsets.sublist(f * 88, (f + 1) * 88));
-        allFrames.add(chunkFrames.sublist(f * 88, (f + 1) * 88));
-        allVelocities.add(chunkVelocities.sublist(f * 88, (f + 1) * 88));
-      }
+      flatOnsets.setRange(startFrame * 88, endFrame * 88, chunkOnsets);
+      flatFrames.setRange(startFrame * 88, endFrame * 88, chunkFrames);
+      flatVelocities.setRange(startFrame * 88, endFrame * 88, chunkVelocities);
     }
 
-    return _decodeOutputs(allOnsets, allFrames, allVelocities, numFrames, features.audioDuration);
+    return _decodeOutputsStatic(flatOnsets, flatFrames, flatVelocities, numFrames, features.audioDuration);
   }
 
-  /// Decodifica las salidas del modelo en eventos de nota.
-  List<NoteEvent> _decodeOutputs(
-    List<Float32List> onsets,
-    List<Float32List> frames,
-    List<Float32List> velocities,
+  /// Decodifica las salidas del modelo en eventos de nota (ESTÁTICO para Isolate).
+  static List<NoteEvent> _decodeOutputsStatic(
+    Float32List onsets,
+    Float32List frames,
+    Float32List velocities,
     int numFrames,
     double audioDuration,
   ) {
@@ -186,8 +301,9 @@ class TranscriptionRepositoryImpl implements TranscriptionRepository {
     for (var frame = 0; frame < numFrames; frame++) {
       for (var note = 0; note < AppConstants.numMidiNotes; note++) {
         final midiNote = note + AppConstants.midiNoteMin;
-        final onsetProb = onsets[frame][note];
-        final frameProb = frames[frame][note];
+        final int offset = frame * 88 + note;
+        final onsetProb = onsets[offset];
+        final frameProb = frames[offset];
 
         if (onsetProb > AppConstants.onsetThreshold) {
           if (activeNotes.containsKey(midiNote)) {
@@ -201,7 +317,7 @@ class TranscriptionRepositoryImpl implements TranscriptionRepository {
             ));
           }
 
-          final velocity = (velocities[frame][note].clamp(0.0, 1.0) * AppConstants.velocityScale)
+          final int velocity = (velocities[offset].clamp(0.0, 1.0) * AppConstants.velocityScale)
               .round()
               .clamp(1, 127);
 

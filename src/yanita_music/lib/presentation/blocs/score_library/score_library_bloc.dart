@@ -51,24 +51,38 @@ class ScoreLibraryBloc extends Bloc<ScoreLibraryEvent, ScoreLibraryState> {
       (scores) async {
         final List<Score> finalScores = List.from(scores);
 
-        // Check if demo score exists and needs URL update
-        for (int i = 0; i < finalScores.length; i++) {
-          final s = finalScores[i];
-          if (s.id == 'demo-ode-to-joy' && s.duration < 60.0) {
-            final refreshedDemo = DemoScoreGenerator.generateOdeToJoy();
-            await _saveScoreUseCase(SaveScoreParams(score: refreshedDemo));
-            finalScores[i] = refreshedDemo;
+        // --- MANTENIMIENTO DE DEMOS ---
+        final List<String> demoIds = ['demo-ode-to-joy', 'demo-bare-necessities'];
+        
+        for (final id in demoIds) {
+          final int index = finalScores.indexWhere((s) => s.id == id);
+          
+          if (index == -1) {
+            // Generar y guardar el demo que falta
+            final Score newDemo = (id == 'demo-ode-to-joy') 
+                ? DemoScoreGenerator.generateOdeToJoy()
+                : DemoScoreGenerator.generateTheBareNecessities();
+            
+            await _saveScoreUseCase(SaveScoreParams(score: newDemo));
+            finalScores.add(newDemo);
+          } else {
+            // Verificar si necesita refrescarse (duración)
+            final s = finalScores[index];
+            if (s.duration < 60.0) {
+              final Score refreshed = (id == 'demo-ode-to-joy')
+                  ? DemoScoreGenerator.generateOdeToJoy()
+                  : DemoScoreGenerator.generateTheBareNecessities();
+              
+              await _saveScoreUseCase(SaveScoreParams(score: refreshed));
+              finalScores[index] = refreshed;
+            }
           }
         }
 
-        if (finalScores.isEmpty) {
-          // Si no hay partituras, generamos el demo y lo guardamos físicamente en DB
-          final demo = DemoScoreGenerator.generateOdeToJoy();
-          await _saveScoreUseCase(SaveScoreParams(score: demo));
-          emit(ScoreLibraryLoaded(scores: [demo]));
-        } else {
-          emit(ScoreLibraryLoaded(scores: finalScores));
-        }
+        // Re-sort para mantener orden cronológico descendente (último creado arriba, o demos abajo)
+        finalScores.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        emit(ScoreLibraryLoaded(scores: finalScores));
       },
     );
   }

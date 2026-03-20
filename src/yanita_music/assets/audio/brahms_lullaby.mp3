@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-283399-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-283399-1');
+</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="Jim Paterson" />
+  <link rel="alternate" type="application/atom+xml" href="https://www.mfiles.co.uk/atom.xml" title="mfiles - the music files" />
+
+<title>Page Not Found - 404 Error - Please select one of the following options</title>
+<meta name="description" content="The page you have requested is not on our servers (404 Error). Please select one of the following options.">
+<meta name="keywords" content="Page Not Found, 404 Error, search mfiles, mfiles site map, contact us">
+<meta name="robots" content="noindex">
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="mf-logo-32x32.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="mf-logo-96x96.png">
+  <link rel="apple-touch-icon-precomposed" type="image/png" sizes="152x152" href="mf-logo-152x152.png">
+
+  <!-- Bootstrap CSS File -->
+  <link href="css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/new-style.css" rel="stylesheet">
+  <link href="css/responsive.css" rel="stylesheet">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,400i,600,700|Raleway:300,400,400i,500,500i,700,800,900" 
+rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Oswald&display=swap" rel="stylesheet">
+
+  <!-- Admin Scripts -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({
+          google_ad_client: "ca-pub-3406387483437091",
+          enable_page_level_ads: true
+     });
+</script>
+</head>
+
+<body>
+  <header>
+    <!-- header-area start -->
+    <div class="hdr">
+      <div class="container">
+        <div class="col-md-12">
+          <a style="font-size: 0" href="/"><img src="logo.png" class="pull-left" title="mfiles home" alt="mfiles logo">mfiles home</a>
+          <div class="top_ad">
+            <!-- Top Ad: wide screens only -->
+            <a href="https://www.sheetmusicplus.com/?aff_id=60930" target="_new"><img alt="Sheet Music Plus Home Page" border="0" src="https://www.mfiles.co.uk/sheetmusicplus-banner.jpg"></a>
+          </div>
+          <form action="search-results.htm" id="cse-search-box">
+          <div>
+            <input type="hidden" name="cx" value="partner-pub-3406387483437091:4715681154" />
+            <input type="hidden" name="cof" value="FORID:10" />
+            <input type="hidden" name="ie" value="UTF-8" />
+            <input type="text" name="q" size="25" placeholder="Search mfiles" class="form-control">
+            <input type="submit" name="sa" value="Search" class="btn btn-info">
+          </div>
+          </form>
+          <script type="text/javascript" src="//www.google.co.uk/coop/cse/brand?form=cse-search-box&amp;lang=en"></script>
+        </div>
+      </div>
+    </div>
+    <div id="sticker" class="header-area">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-12 col-sm-12">
+            <!-- Navigation -->
+            <nav class="navbar navbar-default">
+              <!-- Brand and toggle get grouped for better mobile display -->
+              <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target=".bs-example-navbar-collapse-1" aria-expanded="false">
+                  <span class="sr-only">Toggle navigation</span>
+                  <span class="icon-bar"></span>
+                  <span class="icon-bar"></span>
+                  <span class="icon-bar"></span>
+                </button>
+                <!-- Brand -->
+              </div>
+              <!-- Collect the nav links, forms, and other content for toggling -->
+              <div class="collapse navbar-collapse main-menu bs-example-navbar-collapse-1" id="navbar-example">
+                <ul class="nav navbar-nav">
+                  <li><a href="classical-music.htm">Classical Music</a></li>
+                  <li><a href="traditional-music.htm">Traditional Music</a></li>
+                  <li><a href="sheet-music.htm">Sheet Music</a></li>
+                  <li><a href="midi-files.htm">MIDI Files</a></li>
+                  <li><a href="mp3-files.htm">MP3 Files</a></li>
+                  <li><a href="film-music.htm">Film Music</a></li>
+                  <li><a href="composers.htm">Composers</a></li>
+                  <li><a href="music-reviews.htm">Music Reviews</a></li>
+                </ul>
+              </div>
+              <!-- navbar-collapse -->
+            </nav>
+            <!-- END: Navigation -->
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- header-area end -->
+  </header>
+  <!-- header end -->
+  <div class="container">
+    <div class="row main_cnt">
+      <div class="col-md-2 col-sm-2">
+        <div class="aside">
+          <div class="quick_desc">
+
+<h3>Quick Links</h3>
+<ul>
+  <li><a href="https://www.mfiles.co.uk/sitemap.htm">SiteMap</a></li>
+  <li><a href="https://www.mfiles.co.uk/feedback.htm">Contact Us</a></li>
+  <li><a href="https://www.mfiles.co.uk/search.htm">Search</a></li>
+  <li><a href="https://www.mfiles.co.uk/faq.htm">Frequent Questions</a></li>
+  <li><a href="https://www.mfiles.co.uk/about-mfiles.htm">About Us</a></li>
+</ul>
+
+            <div class="side_ad">
+              <!-- Side Ad: wide screens only -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- responsive-vertical -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3406387483437091"
+     data-ad-slot="5443459870"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+            </div>
+          </div>
+          <div class="quick_mob">
+            <button type="button" class="btn btn-primary btn-sm" data-toggle="collapse" data-target="#demo">RELATED LINKS</button>
+            <div id="demo" class="collapse">
+
+<ul>
+  <li><a href="https://www.mfiles.co.uk/sitemap.htm">SiteMap</a></li>
+  <li><a href="https://www.mfiles.co.uk/feedback.htm">Contact Us</a></li>
+  <li><a href="https://www.mfiles.co.uk/search.htm">Search</a></li>
+  <li><a href="https://www.mfiles.co.uk/faq.htm">Frequent Questions</a></li>
+  <li><a href="https://www.mfiles.co.uk/about-mfiles.htm">About Us</a></li>
+</ul>
+
+            </div>
+          </div>
+          <div class="clearfix"></div>
+        </div>
+      </div>
+
+  <div class="col-md-8 col-sm-8">
+    <!-- Main Content -->
+    <div class="cnt_inr">
+
+<h1>Page Not Found (404 Error):</h1>
+
+<p>The page you have requested could not be found on our servers. This can be caused by mis-typing the URL, following an incorrect link or it could be an error in our website - in which case we apologise and will fix the error as soon as we can.</p>
+
+<p>Please try one of the options:</p>
+
+<ul>
+  <li><a href="https://www.mfiles.co.uk/search.htm">Search mfiles</a> - find what you are looking for (or use the search-box below)</li>
+  <li><a href="https://www.mfiles.co.uk/sitemap.htm">View the Site Map</a> - browse our Site Map to find the page</li>
+  <li><a href="https://www.mfiles.co.uk/feedback.htm">Contact Us</a> - tell us about the error</li>
+  <li><a href="https://www.mfiles.co.uk">Home Page</a> - return to the mfiles Home Page</li>
+</ul>
+
+<h2>Search the mfiles website:</h2>
+
+<p>This comprehensive search facility will identify any pages on the mfiles site search containing the words or phrases which you enter. The Search is powered by Google:</p>
+
+<form action="search-results.htm" id="cse-search-box">
+  <div>
+    <input type="hidden" name="cx" value="partner-pub-3406387483437091:4715681154" />
+    <input type="hidden" name="cof" value="FORID:10" />
+    <input type="hidden" name="ie" value="UTF-8" />
+    <input type="text" name="q" size="31" />
+    <input type="submit" name="sa" value="Search" />
+  </div>
+</form>
+<script type="text/javascript" src="//www.google.co.uk/cse/brand?form=cse-search-box&amp;lang=en"></script>
+
+<h2>Search the Web:</h2>
+
+<p>If you can't find what you're looking for on mfiles, then you may find it elsewhere on the web. This second search facility will search the Web instead:</p>
+
+<form action="search-web.htm" id="cse-search-box">
+  <div>
+    <input type="hidden" name="cx" value="partner-pub-3406387483437091:9700592135" />
+    <input type="hidden" name="cof" value="FORID:10" />
+    <input type="hidden" name="ie" value="UTF-8" />
+    <input type="text" name="q" size="31" />
+    <input type="submit" name="sa" value="Search" />
+  </div>
+</form>
+<script type="text/javascript" src="//www.google.com/cse/brand?form=cse-search-box&amp;lang=en"></script>
+
+          <div class="clearfix"></div>
+        </div>
+        <div class="clearfix"></div>
+      </div>
+
+      <div class="col-md-2 col-sm-2">
+        <div class="aside2">
+          <!-- Right-Hand or Bottom Material -->
+          <div class="clearfix"></div>
+<!-- google ad RHS -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3406387483437091"
+     crossorigin="anonymous"></script>
+<!-- responsive-vertical -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3406387483437091"
+     data-ad-slot="5443459870"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+          <div class="clearfix"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="bottom_ad">
+<!-- Bottom Ad: all screen sizes -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- responsive-horizontal -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3406387483437091"
+     data-ad-slot="6878269979"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+  </div>
+  <br />
+  <footer>
+  <!-- Start Footer bottom Area -->
+  <div class="ftr_menu">
+    <div class="container">
+      <ul>
+        <li><a href="about-mfiles.htm">About Us</a></li>
+        <li><a href="copyright.htm">Terms & Conditions</a></li>
+        <li><a href="cookies-and-privacy.htm">Cookies & Privacy</a></li>
+        <li><a href="licensing.htm">Licensing</a></li>
+        <li><a href="advertising.htm">Advertising</a></li>
+        <li><a href="feedback.htm">Contact Us</a></li>
+        <li><a href="jobs.htm">Jobs</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-area">
+    <div class="container">
+      <ul>
+        <li><a href="faq.htm">Help / FAQ</a></li>
+        <li><a href="search.htm">Search</a></li>
+        <li><a href="shopping.htm">Shopping</a></li>
+        <li><a href="music-articles.htm">Music Articles</a></li>
+        <li><a href="original-music.htm">Original Music</a></li>
+        <li><a href="jims-blog.htm">Jim's Blog</a></li>
+        <li><a href="https://www.mfiles.co.uk/atom.xml">mfiles feed</a></li>
+        <li><a href="sitemap.htm">SiteMap</a></li>
+        <li><a href="links.htm">Links</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-area-bottom">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-12 col-sm-12 col-xs-12">
+          <div class="credits">
+            All material in mfiles is copyright © 1999-2026 <a href="https://www.music-files.com" target="_blank">Music Files Ltd</a>. All rights reserved.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </footer>
+  <!-- JavaScript Libraries -->
+  <script src="js/jquery.min.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+  <script type="text/javascript"> var infolinks_pid = 3234844; var infolinks_wsid = 0; </script>
+  <script type="text/javascript" src="//resources.infolinks.com/js/infolinks_main.js"></script>
+
+</body>
+</html>
+<script type="text/javascript">
+  $(window).scroll(function() {    
+    var scroll = $(window).scrollTop();
+    if (scroll >= 80) {
+      $(".header-area").addClass("addcls");
+    }else {
+      $(".header-area").removeClass("addcls");
+    }
+  }); 
+</script>

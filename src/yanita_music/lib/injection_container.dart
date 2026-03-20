@@ -5,7 +5,6 @@ import 'package:yanita_music/core/utils/music_xml_generator.dart';
 import 'package:yanita_music/data/datasources/local/database_helper.dart';
 import 'package:yanita_music/data/datasources/local/score_local_datasource.dart';
 import 'package:yanita_music/data/datasources/local/songbook_local_datasource.dart';
-import 'package:yanita_music/data/datasources/native/audio_processor_ffi.dart';
 import 'package:yanita_music/data/repositories/audio_repository_impl.dart';
 import 'package:yanita_music/data/repositories/score_repository_impl.dart';
 import 'package:yanita_music/data/repositories/songbook_repository_impl.dart';
@@ -44,12 +43,6 @@ Future<void> initDependencies() async {
   // ──────────────── Data: DataSources ────────────────
   sl.registerLazySingleton<DatabaseHelper>(() => DatabaseHelper());
 
-  sl.registerLazySingleton<AudioProcessorFFI>(() {
-    final ffi = AudioProcessorFFI();
-    // La inicialización se hace al primer uso, no aquí
-    return ffi;
-  });
-
   sl.registerLazySingleton<ScoreLocalDataSource>(
     () => ScoreLocalDataSourceImpl(databaseHelper: sl()),
   );
@@ -61,7 +54,6 @@ Future<void> initDependencies() async {
   // ──────────────── Data: Repositories ────────────────
   sl.registerLazySingleton<AudioRepository>(
     () => AudioRepositoryImpl(
-      audioProcessorFFI: sl(),
       fileValidator: sl(),
     ),
   );

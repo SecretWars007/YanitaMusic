@@ -7,6 +7,9 @@ import 'package:yanita_music/domain/entities/audio_features.dart';
 /// Define la interfaz que la capa de datos debe implementar
 /// para el pipeline de preprocesamiento DSP via C++ FFI.
 abstract class AudioRepository {
+  /// Stream de estados en tiempo real.
+  Stream<String> get statusStream;
+
   /// Procesa un archivo MP3 y genera el espectrograma Mel.
   ///
   /// [filePath] Ruta al archivo de audio validado.

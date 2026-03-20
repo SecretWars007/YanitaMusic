@@ -11,14 +11,13 @@ import 'package:yanita_music/domain/repositories/audio_repository.dart';
 /// Valida el archivo y ejecuta el pipeline de preprocesamiento DSP
 /// para generar el espectrograma Mel necesario para la transcripción.
 class ProcessAudioUseCase extends UseCase<AudioFeatures, ProcessAudioParams> {
-  final AudioRepository _audioRepository;
+  final AudioRepository audioRepository;
   final FileValidator _fileValidator;
 
   ProcessAudioUseCase({
-    required AudioRepository audioRepository,
+    required this.audioRepository,
     required FileValidator fileValidator,
-  }) : _audioRepository = audioRepository,
-       _fileValidator = fileValidator;
+  }) : _fileValidator = fileValidator;
 
   @override
   Future<Either<Failure, AudioFeatures>> call(ProcessAudioParams params) async {
@@ -27,7 +26,7 @@ class ProcessAudioUseCase extends UseCase<AudioFeatures, ProcessAudioParams> {
       await _fileValidator.validateAudioFile(params.filePath);
 
       // Procesamiento DSP via C++ FFI
-      return await _audioRepository.processAudioFile(params.filePath);
+      return await audioRepository.processAudioFile(params.filePath);
     } on Exception catch (e) {
       return Left(
         AudioProcessingFailure(message: 'Error procesando audio: $e'),

@@ -9,6 +9,7 @@ class ScoreStaveVisualizer extends StatelessWidget {
   final double currentTime;
   final bool isPlaying;
   final bool showNoteNames;
+  final double staffScale;
 
   const ScoreStaveVisualizer({
     super.key,
@@ -16,7 +17,9 @@ class ScoreStaveVisualizer extends StatelessWidget {
     required this.currentTime,
     this.isPlaying = false,
     this.showNoteNames = true,
+    this.staffScale = 1.0,
   });
+
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +46,9 @@ class ScoreStaveVisualizer extends StatelessWidget {
             currentTime: currentTime,
             accentColor: Theme.of(context).colorScheme.primary,
             showNoteNames: showNoteNames,
+            staffScale: staffScale,
           ),
+
           size: Size.infinite,
         ),
       ),
@@ -56,30 +61,41 @@ class _StavePainter extends CustomPainter {
   final double currentTime;
   final Color accentColor;
   final bool showNoteNames;
+  final double staffScale;
 
   _StavePainter({
     required this.noteEvents,
     required this.currentTime,
     required this.accentColor,
     this.showNoteNames = true,
+    this.staffScale = 1.0,
   });
+
 
   @override
   @override
   void paint(Canvas canvas, Size size) {
-    const double paddingH = 50.0;
     // Pentagrama ocupa un poco más de alto
-    final double staveHeight = size.height * 0.55; 
-    final double lineSpacing = staveHeight / 4;
+    // Pentagrama ocupa un poco más de alto, afectado por staffScale
+    final double baseLineSpacing = (size.height * 0.55) / 4;
+    final double lineSpacing = baseLineSpacing * staffScale;
+    final double staveHeight = lineSpacing * 4;
     final double startY = (size.height - staveHeight) / 2;
 
-    // 1. Dibujar clave de sol usando TextPainter
+
+
+    // Constantes de diseño para sincronización horizontal
+    const double timeWindow = 6.0;
+    final double pixelsPerSecond = (size.width - 100) / timeWindow;
+    final double playheadX = size.width * 0.3;
+
+    // 1. Dibujar clave de sol usando TextPainter (ANCLADA AL TIEMPO 0)
     final TextPainter clefPainter = TextPainter(
       text: TextSpan(
         text: '𝄞',
         style: TextStyle(
-          fontSize: lineSpacing * 4.8, // Escala más profesional (antes era 6)
-          color: Colors.black.withValues(alpha: 0.9),
+          fontSize: lineSpacing * 4.0, // Más pequeña como pidió el usuario
+          color: Colors.black.withValues(alpha: 0.8),
           height: 1.0,
         ),
       ),
@@ -87,10 +103,14 @@ class _StavePainter extends CustomPainter {
     );
     clefPainter.layout();
     
-    // Posicionar la clave: el "bucle" debe estar centrado en la 2da línea (Sol)
-    const double clefX = paddingH * 0.2;
-    final double clefY = startY - lineSpacing * 0.9; 
-    clefPainter.paint(canvas, Offset(clefX, clefY));
+    // Posicionar la clave relativa al tiempo 0 para que se desplace con las notas
+    final double clefX = playheadX + (0 - currentTime) * pixelsPerSecond - (clefPainter.width + 20);
+    final double clefY = startY - lineSpacing * 0.7; 
+    
+    // Solo dibujamos la clave si es visible en el área actual
+    if (clefX + clefPainter.width > 0 && clefX < size.width) {
+      clefPainter.paint(canvas, Offset(clefX, clefY));
+    }
 
     final Paint linePaint = Paint()
       ..color = Colors.black.withValues(alpha: 0.25)
@@ -107,9 +127,6 @@ class _StavePainter extends CustomPainter {
     }
 
     // 4. Dibujar notas (OPTIMIZADO: Solo las visibles)
-    const double timeWindow = 6.0;
-    final double pixelsPerSecond = (size.width - paddingH * 2) / timeWindow;
-    final double playheadX = size.width * 0.3;
 
     // Buscar el rango de notas visibles usando búsqueda binaria simple
     // Esto es vital para partituras de miles de notas.
@@ -174,8 +191,10 @@ class _StavePainter extends CustomPainter {
         ..style = PaintingStyle.stroke; // Estilo "hollow" (hueco)
 
       // Notas con proporciones de la imagen (más ovaladas)
-      const double radiusX = 11.0;
-      const double radiusY = 8.5;
+      // Notas con proporciones de la imagen (más ovaladas), afectadas por staffScale
+      final double radiusX = 11.0 * staffScale;
+      final double radiusY = 8.5 * staffScale;
+
 
       canvas.save();
       canvas.translate(x, y);
@@ -214,9 +233,10 @@ class _StavePainter extends CustomPainter {
             text: noteName,
             style: TextStyle(
               color: noteColor.withValues(alpha: 0.8),
-              fontSize: 13,
+              fontSize: 13 * staffScale,
               fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
             ),
+
           ),
           textDirection: TextDirection.ltr,
         );
@@ -301,6 +321,8 @@ class _StavePainter extends CustomPainter {
   bool shouldRepaint(covariant _StavePainter oldDelegate) {
     return oldDelegate.currentTime != currentTime ||
         oldDelegate.noteEvents != noteEvents ||
-        oldDelegate.showNoteNames != showNoteNames;
+        oldDelegate.showNoteNames != showNoteNames ||
+        oldDelegate.staffScale != staffScale;
+
   }
 }

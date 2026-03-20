@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,17 +10,13 @@ import 'package:yanita_music/domain/entities/score.dart';
 import 'package:yanita_music/domain/usecases/process_audio_usecase.dart';
 import 'package:yanita_music/domain/usecases/transcribe_audio_usecase.dart';
 import 'package:yanita_music/domain/usecases/save_score_usecase.dart';
+import 'package:yanita_music/core/utils/spectrogram_utils.dart';
+
 
 part 'transcription_event.dart';
 part 'transcription_state.dart';
 
 /// BLoC principal para el pipeline de transcripción musical.
-///
-/// Orquesta el flujo completo:
-/// 1. Selección de archivo MP3 (via file_picker)
-/// 2. Procesamiento DSP (espectrograma Mel via C++ FFI)
-/// 3. Inferencia TFLite (modelo Onsets and Frames)
-/// 4. Persistencia en SQLite
 class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
   final ProcessAudioUseCase _processAudioUseCase;
   final TranscribeAudioUseCase _transcribeAudioUseCase;
@@ -41,6 +37,7 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
     on<RetryTranscription>(_onRetryTranscription);
     on<ResetTranscription>(_onResetTranscription);
     on<SaveTranscriptionResult>(_onSaveResult);
+    on<_UpdateStatus>(_onUpdateStatus);
   }
 
   Future<void> _onSelectAudioFile(
@@ -66,6 +63,26 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
     }
   }
 
+  void _onUpdateStatus(
+    _UpdateStatus event,
+    Emitter<TranscriptionState> emit,
+  ) {
+    final currentState = state;
+    if (currentState is AudioProcessing && event.phase == 'audio') {
+      emit(AudioProcessing(
+        fileName: currentState.fileName,
+        statusMessage: currentState.statusMessage,
+        detailMessage: event.message,
+      ));
+    } else if (currentState is Transcribing && event.phase == 'transcription') {
+      emit(Transcribing(
+        fileName: currentState.fileName,
+        statusMessage: currentState.statusMessage,
+        detailMessage: event.message,
+      ));
+    }
+  }
+
   Future<void> _onStartTranscription(
     StartTranscription event,
     Emitter<TranscriptionState> emit,
@@ -73,119 +90,141 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
     _lastFilePath = event.filePath;
     final fileName = event.filePath.split('/').last.split('\\').last;
 
-    // Fase 1: Procesamiento de audio
-    emit(AudioProcessing(
-      fileName: fileName,
-      statusMessage: 'Preparando espectrograma Mel...',
-    ));
+    // Suscribirse a actualizaciones de estado de los repositorios
+    final audioStatusSub = _processAudioUseCase.audioRepository.statusStream.listen((message) {
+      add(_UpdateStatus(message: message, phase: 'audio'));
+    });
 
-    final audioResult = await _processAudioUseCase(
-      ProcessAudioParams(filePath: event.filePath),
-    );
+    final transcriptionStatusSub = _transcribeAudioUseCase.transcriptionRepository.statusStream.listen((message) {
+      add(_UpdateStatus(message: message, phase: 'transcription'));
+    });
 
-    final audioFeatures = audioResult.fold(
-      (failure) {
-        emit(TranscriptionError(
-          message: failure.message,
-          lastFilePath: event.filePath,
-        ));
-        return null;
-      },
-      (features) => features,
-    );
+    try {
+      // Fase 1: Procesamiento de audio
+      emit(AudioProcessing(
+        fileName: fileName,
+        statusMessage: 'Preparando espectrograma Mel...',
+      ));
 
-    if (audioFeatures == null) return;
+      final audioResult = await _processAudioUseCase(
+        ProcessAudioParams(filePath: event.filePath),
+      );
 
-    // Fase 2: Transcripción TFLite
-    emit(Transcribing(
-      fileName: fileName,
-      statusMessage: 'Ejecutando modelo Onsets and Frames...',
-    ));
-
-    final transcriptionResult = await _transcribeAudioUseCase(
-      TranscribeAudioParams(audioFeatures: audioFeatures),
-    );
-
-    transcriptionResult.fold(
-      (failure) {
-        emit(TranscriptionError(
-          message: failure.message,
-          lastFilePath: event.filePath,
-        ));
-      },
-      (noteEvents) async {
-        // Detectar polifonía
-        var isPolyphonic = false;
-        for (var i = 0; i < noteEvents.length - 1 && !isPolyphonic; i++) {
-          for (var j = i + 1; j < noteEvents.length; j++) {
-            if (noteEvents[j].startTime < noteEvents[i].endTime &&
-                noteEvents[j].startTime >= noteEvents[i].startTime) {
-              isPolyphonic = true;
-              break;
-            }
-          }
-        }
-
-        // --- AUTOMATIZACIÓN: Guardar automáticamente en base de datos ---
-        final title = fileName.replaceAll(RegExp(r'\.[^.]+$'), '');
-        emit(SavingTranscription(title: title));
-
-        final now = DateTime.now();
-        
-        // Mover el archivo a un almacenamiento persistente
-        String permanentAudioPath = event.filePath;
-        try {
-          final appDocDir = await getApplicationDocumentsDirectory();
-          final String fileExtension = fileName.split('.').last;
-          final String newFileName = '${const Uuid().v4()}.$fileExtension';
-          final File newAudioFile = File('${appDocDir.path}/$newFileName');
-          
-          await File(event.filePath).copy(newAudioFile.path);
-          permanentAudioPath = newAudioFile.path;
-        } catch (e) {
+      final audioFeatures = audioResult.fold(
+        (failure) {
           emit(TranscriptionError(
-            message: 'Error copiando audio a almacenamiento persistente: $e',
+            message: failure.message,
             lastFilePath: event.filePath,
           ));
-          return;
-        }
+          return null;
+        },
+        (features) => features,
+      );
 
-        // Serializar espectrograma para almacenar en DB
-        final spectrogramJson = jsonEncode(audioFeatures.melSpectrogram);
-        final score = Score(
-          id: const Uuid().v4(),
-          title: title,
-          audioPath: permanentAudioPath,
-          noteEvents: noteEvents,
-          duration: audioFeatures.audioDuration,
-          spectrogramData: spectrogramJson,
-          createdAt: now,
-          updatedAt: now,
-        );
+      if (audioFeatures == null) return;
 
-        final saveResult = await _saveScoreUseCase(SaveScoreParams(score: score));
+      // Fase 2: Transcripción TFLite
+      emit(Transcribing(
+        fileName: fileName,
+        statusMessage: 'Ejecutando modelo Onsets and Frames...',
+      ));
 
-        saveResult.fold(
-          (failure) => emit(TranscriptionError(
-            message: 'Error al auto-guardar: ${failure.message}',
+      final transcriptionResult = await _transcribeAudioUseCase(
+        TranscribeAudioParams(audioFeatures: audioFeatures),
+      );
+
+      final noteEvents = transcriptionResult.fold(
+        (failure) {
+          emit(TranscriptionError(
+            message: failure.message,
             lastFilePath: event.filePath,
-          )),
-          (savedScore) {
-            emit(TranscriptionSuccess(
-              filePath: event.filePath,
-              noteCount: noteEvents.length,
-              duration: audioFeatures.audioDuration,
-              isPolyphonic: isPolyphonic,
-              noteEvents: noteEvents,
-            ));
-            emit(TranscriptionSaved(
-              scoreId: savedScore.id,
-              title: savedScore.title,
-            ));
-          },
-        );
-      },
-    );
+          ));
+          return null;
+        },
+        (events) => events,
+      );
+
+      if (noteEvents == null) return;
+
+      // Fase 3: Post-procesamiento y Guardado
+      // Detectar polifonía (OPTIMIZADO O(N))
+      var maxEndTime = 0.0;
+      var isPolyphonic = false;
+      for (final note in noteEvents) {
+        if (note.startTime < (maxEndTime - 0.01)) { // Margen de 10ms para evitar falsos positivos
+          isPolyphonic = true;
+          break;
+        }
+        if (note.endTime > maxEndTime) {
+          maxEndTime = note.endTime;
+        }
+      }
+
+      final title = fileName.replaceAll(RegExp(r'\.[^.]+$'), '');
+      emit(SavingTranscription(title: title));
+
+      final now = DateTime.now();
+      
+      // Mover el archivo a un almacenamiento persistente
+      String permanentAudioPath = event.filePath;
+      try {
+        final appDocDir = await getApplicationDocumentsDirectory();
+        final String fileExtension = fileName.split('.').last;
+        final String newFileName = '${const Uuid().v4()}.$fileExtension';
+        final File newAudioFile = File('${appDocDir.path}/$newFileName');
+        
+        await File(event.filePath).copy(newAudioFile.path);
+        permanentAudioPath = newAudioFile.path;
+      } catch (e) {
+        emit(TranscriptionError(
+          message: 'Error copiando audio a almacenamiento persistente: $e',
+          lastFilePath: event.filePath,
+        ));
+        return;
+      }
+
+      final score = Score(
+        id: const Uuid().v4(),
+        title: title,
+        audioPath: permanentAudioPath,
+        noteEvents: noteEvents,
+        duration: audioFeatures.audioDuration,
+        spectrogramData: SpectrogramUtils.serialize(audioFeatures.melSpectrogram),
+        createdAt: now,
+        updatedAt: now,
+      );
+
+
+      final saveResult = await _saveScoreUseCase(SaveScoreParams(score: score));
+
+      saveResult.fold(
+        (failure) => emit(TranscriptionError(
+          message: 'Error al auto-guardar: ${failure.message}',
+          lastFilePath: event.filePath,
+        )),
+        (savedScore) {
+          emit(TranscriptionSuccess(
+            filePath: event.filePath,
+            noteCount: noteEvents.length,
+            duration: audioFeatures.audioDuration,
+            isPolyphonic: isPolyphonic,
+            noteEvents: noteEvents,
+          ));
+          emit(TranscriptionSaved(
+            scoreId: savedScore.id,
+            title: savedScore.title,
+          ));
+        },
+      );
+    } catch (e) {
+      emit(TranscriptionError(
+        message: 'Error inesperado durante la transcripción: $e',
+        lastFilePath: event.filePath,
+      ));
+    } finally {
+      audioStatusSub.cancel();
+      transcriptionStatusSub.cancel();
+    }
   }
 
   Future<void> _onRetryTranscription(

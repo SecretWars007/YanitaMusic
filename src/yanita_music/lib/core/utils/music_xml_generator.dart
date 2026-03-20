@@ -23,8 +23,10 @@ class MusicXmlGenerator {
       '<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" '
       '"http://www.musicxml.org/dtds/partwise.dtd">\n';
 
-  /// Mapeo de pitch MIDI a nombre de nota y octava.
-  static const _noteNames = [
+  /// Mapeo de pitch MIDI a nombre de paso (Step) de la nota.
+  /// Los semitonos se manejan con el tag `alter` vía [_alterations].
+
+  static const _noteSteps = [
     'C',
     'C',
     'D',
@@ -238,7 +240,7 @@ class MusicXmlGenerator {
     final octave = (midiPitch ~/ 12) - 1;
 
     return {
-      'step': _noteNames[noteIndex],
+      'step': _noteSteps[noteIndex],
       'alter': _alterations[noteIndex],
       'octave': octave.clamp(0, 9),
     };

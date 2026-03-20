@@ -69,7 +69,8 @@ class TranscriptionPage extends StatelessWidget {
                 // Área de upload
                 if (state is TranscriptionInitial) _buildUploadCard(context),
 
-                if (state is TranscriptionError) _buildErrorCard(context, state),
+                if (state is TranscriptionError)
+                  _buildErrorCard(context, state),
 
                 if (state is AudioFileSelected)
                   _buildFileSelectedCard(context, state),
@@ -120,7 +121,8 @@ class TranscriptionPage extends StatelessWidget {
   Widget _buildUploadCard(BuildContext context) {
     return Card(
       child: InkWell(
-        onTap: () => context.read<TranscriptionBloc>().add(SelectAudioFile()),
+        onTap: () =>
+            context.read<TranscriptionBloc>().add(const SelectAudioFile()),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           height: 220,
@@ -249,6 +251,14 @@ class TranscriptionPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(state.fileName, style: Theme.of(context).textTheme.bodyMedium),
+            if (state.detailMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                state.detailMessage!,
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ],
             const SizedBox(height: 16),
             const LinearProgressIndicator(
               backgroundColor: Colors.white10,
@@ -285,6 +295,13 @@ class TranscriptionPage extends StatelessWidget {
               'Modelo: Onsets and Frames (TFLite)',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+            if (state.detailMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                state.detailMessage!,
+                style: const TextStyle(color: Color(0xFFFF9800), fontSize: 13),
+              ),
+            ],
           ],
         ),
       ),
@@ -352,9 +369,8 @@ class TranscriptionPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () => context.read<TranscriptionBloc>().add(
-                ResetTranscription(),
-              ),
+              onPressed: () =>
+                  context.read<TranscriptionBloc>().add(ResetTranscription()),
               icon: const Icon(Icons.refresh),
               label: const Text('Nueva Transcripción'),
               style: ElevatedButton.styleFrom(

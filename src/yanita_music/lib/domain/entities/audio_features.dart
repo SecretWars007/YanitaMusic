@@ -33,6 +33,24 @@ class AudioFeatures extends Equatable {
     required this.sourceChecksum,
   });
 
+  AudioFeatures copyWith({
+    Float32List? melSpectrogram,
+    int? numFrames,
+    int? numMelBins,
+    double? audioDuration,
+    int? sampleRate,
+    String? sourceChecksum,
+  }) {
+    return AudioFeatures(
+      melSpectrogram: melSpectrogram ?? this.melSpectrogram,
+      numFrames: numFrames ?? this.numFrames,
+      numMelBins: numMelBins ?? this.numMelBins,
+      audioDuration: audioDuration ?? this.audioDuration,
+      sampleRate: sampleRate ?? this.sampleRate,
+      sourceChecksum: sourceChecksum ?? this.sourceChecksum,
+    );
+  }
+
   @override
   List<Object?> get props => [
     numFrames,

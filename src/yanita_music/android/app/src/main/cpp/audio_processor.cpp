@@ -263,31 +263,58 @@ float* process_audio_file(const char* file_path, int32_t* out_frames,
         return nullptr;
     }
 
-    // ─── Paso 1: Decodificar MP3 con minimp3 ───
-    mp3dec_t mp3d;
-    mp3dec_file_info_t info;
-    memset(&info, 0, sizeof(info));
+    // ─── Paso 1: Cargar audio (WAV o MP3) ───
+    std::vector<float> audio;
+    int original_sr = 0;
+    int num_channels = 0;
 
-    int result = mp3dec_load(&mp3d, file_path, &info, NULL, NULL);
-    if (result != 0 || info.samples == 0 || info.buffer == nullptr) {
-        g_last_error = "Error al decodificar el archivo de audio. "
-                       "Asegurese de que es un archivo MP3 valido.";
-        LOGE("mp3dec_load error: %d, samples: %zu", result, info.samples);
-        if (info.buffer) free(info.buffer);
-        return nullptr;
+    std::string path_str(file_path);
+    bool is_wav = path_str.size() > 4 && 
+                 path_str.substr(path_str.size() - 4) == ".wav";
+
+    if (is_wav) {
+        LOGI("Detectado formato WAV. Cargando...");
+        FILE* f = fopen(file_path, "rb");
+        if (f) {
+            char header[44];
+            if (fread(header, 1, 44, f) == 44) {
+                num_channels = *(uint16_t*)(header + 22);
+                original_sr = *(uint32_t*)(header + 24);
+                uint32_t data_size = *(uint32_t*)(header + 40);
+                
+                LOGI("WAV Header: %d Hz, %d canales, %u bytes data", original_sr, num_channels, data_size);
+                
+                std::vector<int16_t> samples(data_size / 2);
+                fread(samples.data(), 2, samples.size(), f);
+                
+                // Convertir a mono float y resamplear si es necesario
+                audio = resample(samples.data(), (int)samples.size(), original_sr, num_channels);
+            }
+            fclose(f);
+        }
     }
 
-    LOGI("MP3 decodificado: %zu muestras, %d Hz, %d canales",
-         info.samples, info.hz, info.channels);
+    // Fallback a MP3 si no es WAV o si falló la carga
+    if (audio.empty()) {
+        LOGI("Cargando como MP3 (Fallback)...");
+        mp3dec_t mp3d;
+        mp3dec_file_info_t info;
+        memset(&info, 0, sizeof(info));
 
-    // ─── Paso 2: Resamplear a 16kHz mono ───
-    int total_samples = (int)info.samples;
-    std::vector<float> audio = resample(info.buffer, total_samples,
-                                         info.hz, info.channels);
-    free(info.buffer);  // Liberar buffer de minimp3
+        int result = mp3dec_load(&mp3d, file_path, &info, NULL, NULL);
+        if (result == 0 && info.samples > 0 && info.buffer != nullptr) {
+            audio = resample(info.buffer, (int)info.samples, info.hz, info.channels);
+            free(info.buffer);
+        } else {
+            g_last_error = "Error al decodificar el archivo de audio (WAV/MP3).";
+            if (info.buffer) free(info.buffer);
+            return nullptr;
+        }
+    }
 
     int audio_len = (int)audio.size();
     double duration = (double)audio_len / TARGET_SAMPLE_RATE;
+
 
     LOGI("Audio resampleado: %d muestras, %.2f segundos", audio_len, duration);
 
