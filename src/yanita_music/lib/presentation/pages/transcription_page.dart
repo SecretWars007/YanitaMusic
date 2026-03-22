@@ -70,16 +70,16 @@ class TranscriptionPage extends StatelessWidget {
                 if (state is TranscriptionInitial) _buildUploadCard(context),
 
                 if (state is TranscriptionError)
-                  _buildErrorCard(context, state),
+                  _buildErrorCard(context, state, state.steps),
 
                 if (state is AudioFileSelected)
                   _buildFileSelectedCard(context, state),
 
                 if (state is AudioProcessing)
-                  _buildProcessingCard(context, state),
+                  _buildProcessingCard(context, state, state.steps),
 
                 if (state is Transcribing)
-                  _buildTranscribingCard(context, state),
+                  _buildProcessingCard(context, state, state.steps),
 
                 if (state is SavingTranscription)
                   _buildSavingCard(context, state),
@@ -232,78 +232,123 @@ class TranscriptionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildProcessingCard(BuildContext context, AudioProcessing state) {
+  Widget _buildProcessingCard(BuildContext context, TranscriptionState state, List<TranscriptionStep> steps) {
+    String title = 'Procesando...';
+    String fileName = '';
+    String? detail;
+
+    if (state is AudioProcessing) {
+      title = state.statusMessage;
+      fileName = state.fileName;
+      detail = state.detailMessage;
+    } else if (state is Transcribing) {
+      title = state.statusMessage;
+      fileName = state.fileName;
+      detail = state.detailMessage;
+    }
+
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(
-              width: 64,
-              height: 64,
-              child: CircularProgressIndicator(strokeWidth: 3),
+            Row(
+              children: [
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF9800)),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: Theme.of(context).textTheme.titleMedium),
+                      Text(fileName, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54)),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
-            Text(
-              state.statusMessage,
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(state.fileName, style: Theme.of(context).textTheme.bodyMedium),
-            if (state.detailMessage != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                state.detailMessage!,
-                style: const TextStyle(color: Colors.white54, fontSize: 13),
-                textAlign: TextAlign.center,
+            const Divider(height: 1),
+            const SizedBox(height: 16),
+            _buildStepsList(context, steps),
+            if (detail != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  detail,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Colors.amber),
+                ),
               ),
             ],
-            const SizedBox(height: 16),
-            const LinearProgressIndicator(
-              backgroundColor: Colors.white10,
-              color: Color(0xFFFF9800),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTranscribingCard(BuildContext context, Transcribing state) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            const SizedBox(
-              width: 64,
-              height: 64,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                color: Color(0xFFFF9800),
+  Widget _buildStepsList(BuildContext context, List<TranscriptionStep> steps) {
+    return Column(
+      children: steps.map((step) => _buildStepRow(context, step)).toList(),
+    );
+  }
+
+  Widget _buildStepRow(BuildContext context, TranscriptionStep step) {
+    IconData icon;
+    Color color;
+    Widget trailing = const SizedBox.shrink();
+
+    switch (step.status) {
+      case TranscriptionStepStatus.pending:
+        icon = Icons.radio_button_unchecked;
+        color = Colors.white24;
+        break;
+      case TranscriptionStepStatus.processing:
+        icon = Icons.sync;
+        color = const Color(0xFFFF9800);
+        trailing = const SizedBox(
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFFF9800)),
+        );
+        break;
+      case TranscriptionStepStatus.completed:
+        icon = Icons.check_circle;
+        color = Colors.green.shade400;
+        break;
+      case TranscriptionStepStatus.error:
+        icon = Icons.error;
+        color = Colors.red.shade400;
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              step.title,
+              style: TextStyle(
+                color: step.status == TranscriptionStepStatus.pending ? Colors.white38 : Colors.white,
+                fontSize: 14,
               ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              state.statusMessage,
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Modelo: Onsets and Frames (TFLite)',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            if (state.detailMessage != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                state.detailMessage!,
-                style: const TextStyle(color: Color(0xFFFF9800), fontSize: 13),
-              ),
-            ],
-          ],
-        ),
+          ),
+          trailing,
+        ],
       ),
     );
   }
@@ -349,9 +394,9 @@ class TranscriptionPage extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               '¡Transcripción completada!',
-              style: Theme.of(context).textTheme.headlineMedium,
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             _buildMetricRow('Notas detectadas', '${state.noteCount}'),
             _buildMetricRow(
               'Duración',
@@ -361,21 +406,68 @@ class TranscriptionPage extends StatelessWidget {
               'Tipo',
               state.isPolyphonic ? 'Polifónica' : 'Monofónica',
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'La partitura se ha guardado automáticamente en tu biblioteca.',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-              textAlign: TextAlign.center,
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.read<TranscriptionBloc>().add(ResetTranscription()),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Nueva Transcripción'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF9800),
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard(BuildContext context, TranscriptionError state, List<TranscriptionStep>? steps) {
+    return Card(
+      color: Colors.red.withValues(alpha: 0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    'Error en la transcripción',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+            if (steps != null) ...[
+              const SizedBox(height: 16),
+              const Divider(color: Colors.white10),
+              _buildStepsList(context, steps),
+            ],
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  context.read<TranscriptionBloc>().add(ResetTranscription()),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Nueva Transcripción'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF9800),
-                foregroundColor: Colors.white,
+            Text(
+              state.message,
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  if (state.lastFilePath != null) {
+                    context.read<TranscriptionBloc>().add(
+                          StartTranscription(filePath: state.lastFilePath!),
+                        );
+                  }
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
               ),
             ),
           ],
@@ -403,53 +495,6 @@ class TranscriptionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorCard(BuildContext context, TranscriptionError state) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'Error al procesar archivo',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              state.message,
-              style: const TextStyle(color: Colors.white70),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => context.read<TranscriptionBloc>().add(
-                    ResetTranscription(),
-                  ),
-                  icon: const Icon(Icons.file_upload),
-                  label: const Text('Otro archivo'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => context.read<TranscriptionBloc>().add(
-                    RetryTranscription(),
-                  ),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Reintentar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF9800),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showPianoOnlyAlert(BuildContext context) {
     showDialog(

@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.yanita_music"
+    namespace = "com.yanita.music"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -28,7 +28,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.yanita_music"
+        applicationId = "com.yanita.music"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
@@ -60,17 +60,5 @@ flutter {
 repositories {
     google()
     mavenCentral()
-    maven { url = uri("https://s01.oss.sonatype.org/content/repositories/releases/") }
-    maven { url = uri("https://jitpack.io") }
-    maven { url = uri("https://raw.githubusercontent.com/arthenica/ffmpeg-kit-flutter/main/m2repository") }
-    maven { url = uri("https://raw.githubusercontent.com/arthenica/ffmpeg-kit/master/m2repository") }
-}
-
-configurations.all {
-    resolutionStrategy {
-        force("com.arthenica:ffmpeg-kit-audio:6.0-2")
-        force("com.arthenica:ffmpeg-kit-full:6.0-2")
-        force("com.arthenica:ffmpeg-kit-https:6.0-2")
-    }
 }
 

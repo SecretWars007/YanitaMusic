@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:ffmpeg_kit_flutter_audio/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_audio/return_code.dart';
+import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart';
 
 
 
@@ -41,6 +41,19 @@ class AudioConverter {
 
     if (ReturnCode.isSuccess(returnCode)) {
       AppLogger.info('Conversión exitosa: $outputPath');
+      
+      // Copia de validación a assets/wavs
+      try {
+        final destDir = Directory('assets/wavs');
+        if (!destDir.existsSync()) {
+          destDir.createSync(recursive: true);
+        }
+        File(outputPath).copySync('assets/wavs/$outputName');
+        AppLogger.info('Copia de validación guardada en assets/wavs/$outputName');
+      } catch (e) {
+        AppLogger.warning('No se pudo guardar la copia de validación en assets/wavs: $e');
+      }
+
       return outputPath;
     } else if (ReturnCode.isCancel(returnCode)) {
       AppLogger.warning('Conversión FFmpeg cancelada por el usuario');

@@ -1,54 +1,76 @@
-import 'dart:developer' as developer;
+import 'package:logger/logger.dart' as log_pkg;
+import 'package:yanita_music/domain/entities/log_entry.dart';
+import 'package:yanita_music/domain/repositories/log_repository.dart';
+import 'package:get_it/get_it.dart';
 
-enum LogLevel { debug, info, warning, error }
-
-/// Logger centralizado para el proyecto.
-/// Filtra por nivel y registra con timestamps.
+/// Logger global de la aplicación que guarda registros en la base de datos.
+/// Reemplaza la implementación anterior basada solo en developer.log.
 class AppLogger {
   AppLogger._();
 
-  static LogLevel _currentLevel = LogLevel.debug;
+  static final log_pkg.Logger _logger = log_pkg.Logger(
+    printer: log_pkg.PrettyPrinter(
+      methodCount: 0,
+      errorMethodCount: 5,
+      lineLength: 80,
+      colors: true,
+      printEmojis: true,
+      dateTimeFormat: log_pkg.DateTimeFormat.onlyTimeAndSinceStart,
+    ),
+  );
 
-  static void setLevel(LogLevel level) {
-    _currentLevel = level;
+  static LogRepository? _repository;
+  static bool _isPersisting = false;
+
+  static void _ensureRepository() {
+    if (_repository == null && GetIt.I.isRegistered<LogRepository>()) {
+      _repository = GetIt.I<LogRepository>();
+    }
   }
 
-  static void debug(String message, {String tag = 'APP'}) {
-    _log(LogLevel.debug, message, tag: tag);
+  static void info(String message, {String tag = 'APP', dynamic error, StackTrace? stackTrace}) {
+    _logger.i('[$tag] $message', error: error, stackTrace: stackTrace);
+    _persist(LogLevel.info, message, tag, stackTrace);
   }
 
-  static void info(String message, {String tag = 'APP'}) {
-    _log(LogLevel.info, message, tag: tag);
-  }
-
-  static void warning(String message, {String tag = 'APP'}) {
-    _log(LogLevel.warning, message, tag: tag);
+  static void warning(String message, {String tag = 'APP', dynamic error, StackTrace? stackTrace}) {
+    _logger.w('[$tag] $message', error: error, stackTrace: stackTrace);
+    _persist(LogLevel.warning, message, tag, stackTrace);
   }
 
   static void error(
     String message, {
     String tag = 'APP',
-    Object? error,
+    dynamic error,
     StackTrace? stackTrace,
   }) {
-    _log(LogLevel.error, message, tag: tag);
-    if (error != null) {
-      developer.log(
-        'Error detail: $error',
-        name: tag,
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
+    _logger.e('[$tag] $message', error: error, stackTrace: stackTrace);
+    _persist(LogLevel.error, message, tag, stackTrace);
   }
 
-  static void _log(LogLevel level, String message, {required String tag}) {
-    if (level.index < _currentLevel.index) return;
+  static void debug(String message, {String tag = 'APP'}) {
+    _logger.d('[$tag] $message');
+    _persist(LogLevel.debug, message, tag, null);
+  }
 
-    final timestamp = DateTime.now().toIso8601String();
-    final prefix = level.name.toUpperCase();
-    final formatted = '[$prefix] $timestamp | $message';
-
-    developer.log(formatted, name: tag);
+  static void _persist(LogLevel level, String message, String tag, StackTrace? stackTrace) {
+    if (_isPersisting) return; // Evitar recursión infinita si el repo intenta loguear
+    
+    _isPersisting = true;
+    try {
+      _ensureRepository();
+      if (_repository != null) {
+        final log = LogEntry(
+          level: level,
+          message: message,
+          tag: tag,
+          stackTrace: stackTrace?.toString(),
+          createdAt: DateTime.now(),
+        );
+        _repository!.saveLog(log);
+      }
+    } finally {
+      _isPersisting = false;
+    }
   }
 }

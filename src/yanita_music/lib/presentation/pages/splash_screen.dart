@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:yanita_music/presentation/pages/login_page.dart';
+import '../../core/constants/version_constants.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -43,9 +44,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _navigateToLogin() {
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginPage()));
     }
   }
 
@@ -64,9 +65,7 @@ class _SplashScreenState extends State<SplashScreen>
         children: [
           // Fondo de estrellas
           Positioned.fill(
-            child: CustomPaint(
-              painter: StarPainter(_controller),
-            ),
+            child: CustomPaint(painter: StarPainter(_controller)),
           ),
           // Contenido Principal
           Center(
@@ -119,7 +118,9 @@ class _SplashScreenState extends State<SplashScreen>
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFFF9800).withValues(alpha: 0.5),
+                                    color: const Color(
+                                      0xFFFF9800,
+                                    ).withValues(alpha: 0.5),
                                     blurRadius: 10,
                                     spreadRadius: 2,
                                   ),
@@ -131,7 +132,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Cargando... ${( _loadingProgress * 100).toInt()}%',
+                        'Cargando... ${(_loadingProgress * 100).toInt()}%',
                         style: const TextStyle(
                           color: Color(0xFFCCCCCC),
                           fontSize: 14,
@@ -140,6 +141,25 @@ class _SplashScreenState extends State<SplashScreen>
                     ],
                   ),
                 ],
+              ),
+            ),
+          ),
+          // Versión en la parte inferior
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 40,
+            child: FadeTransition(
+              opacity: _animation,
+              child: const Center(
+                child: Text(
+                  'v${VersionConstants.fullVersion}',
+                  style: TextStyle(
+                    color: Colors.white24,
+                    fontSize: 12,
+                    letterSpacing: 1.2,
+                  ),
+                ),
               ),
             ),
           ),
@@ -165,7 +185,9 @@ class StarPainter extends CustomPainter {
       final x = star.dx * size.width;
       final y = star.dy * size.height;
       // Brillo aleatorio basado en la animación
-      final opacity = (sin(animation.value * 2 * pi * (stars.indexOf(star) % 5 + 1)) + 1) / 2;
+      final opacity =
+          (sin(animation.value * 2 * pi * (stars.indexOf(star) % 5 + 1)) + 1) /
+          2;
       paint.color = Colors.white.withValues(alpha: opacity * 0.8);
       canvas.drawCircle(Offset(x, y), Random().nextDouble() * 2, paint);
     }

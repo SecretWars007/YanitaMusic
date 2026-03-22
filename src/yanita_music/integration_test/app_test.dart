@@ -22,7 +22,7 @@ void main() {
         expect(find.text('Yanita Music'), findsAtLeastNWidgets(1));
 
         // Verificar que la versión v1.1.0+2 es visible (Requerimiento de QA)
-        final versionText = find.textContaining('Versión ${VersionConstants.appVersion}');
+        final versionText = find.textContaining('Versión ${VersionConstants.fullVersion}');
         expect(versionText, findsOneWidget);
         
         AppLogger.info('QA: Versión detectada correctamente: ${VersionConstants.appVersion}');
@@ -35,7 +35,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Verificar presencia del demo local
-        final demoTitle = find.text('HIMNO A LA ALEGRÍA (Demo)');
+        final demoTitle = find.text('Bach: Minuet in G');
         expect(demoTitle, findsOneWidget);
 
         // Entrar al detalle del demo
@@ -58,7 +58,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Tocar el botón de navegación a Transcripción
-        final navItem = find.byIcon(Icons.music_note_outlined);
+        final navItem = find.byIcon(Icons.library_music);
         expect(navItem, findsOneWidget);
         
         await tester.tap(navItem);

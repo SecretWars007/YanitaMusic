@@ -13,6 +13,8 @@ import 'package:yanita_music/domain/repositories/audio_repository.dart';
 import 'package:yanita_music/domain/repositories/score_repository.dart';
 import 'package:yanita_music/domain/repositories/songbook_repository.dart';
 import 'package:yanita_music/domain/repositories/transcription_repository.dart';
+import 'package:yanita_music/domain/repositories/log_repository.dart';
+import 'package:yanita_music/data/repositories/log_repository_impl.dart';
 import 'package:yanita_music/domain/usecases/add_song_usecase.dart';
 import 'package:yanita_music/domain/usecases/delete_score_usecase.dart';
 import 'package:yanita_music/domain/usecases/export_midi_usecase.dart';
@@ -74,6 +76,10 @@ Future<void> initDependencies() async {
     () => SongbookRepositoryImpl(localDataSource: sl()),
   );
 
+  sl.registerLazySingleton<LogRepository>(
+    () => LogRepositoryImpl(sl()),
+  );
+
   // ──────────────── Domain: Use Cases ────────────────
   sl.registerLazySingleton(
     () => ProcessAudioUseCase(
@@ -129,7 +135,6 @@ Future<void> initDependencies() async {
       deleteScoreUseCase: sl(),
       exportMidiUseCase: sl(),
       exportMusicXmlUseCase: sl(),
-      saveScoreUseCase: sl(),
     ),
   );
 

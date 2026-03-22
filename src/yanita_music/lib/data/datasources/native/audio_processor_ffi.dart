@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:yanita_music/core/error/exceptions.dart';
-import 'package:logger/logger.dart';
+import 'package:yanita_music/core/utils/logger.dart';
 
 /// Binding FFI al módulo de procesamiento de audio en C++.
 ///
@@ -45,7 +45,7 @@ class AudioProcessorFFI {
   late final ProcessAudioFileDart _processAudioFile;
   late final FreeBufferDart _freeBuffer;
   late final GetLastErrorDart _getLastError;
-  final Logger _logger = Logger();
+  static const String _tag = 'AudioProcessorFFI';
   bool _isInitialized = false;
 
   /// Inicializa la librería nativa.
@@ -72,9 +72,9 @@ class AudioProcessorFFI {
           );
 
       _isInitialized = true;
-      _logger.i('Módulo nativo de audio inicializado correctamente');
-    } catch (e) {
-      _logger.e('Error inicializando módulo nativo: $e');
+      AppLogger.info('Módulo nativo de audio inicializado correctamente', tag: _tag);
+    } catch (e, stackTrace) {
+      AppLogger.error('Error inicializando módulo nativo', tag: _tag, error: e, stackTrace: stackTrace);
       throw AudioProcessingException(
         message: 'No se pudo cargar la librería nativa de audio: $e',
       );
@@ -133,10 +133,11 @@ class AudioProcessorFFI {
       final numFrames = outFrames.value;
       final numMelBins = outMelBins.value;
       final duration = outDuration.value;
-
-      _logger.i(
+      
+      AppLogger.info(
         'Audio procesado (Flat Buffer): $numFrames frames, $numMelBins mel bins, '
         '${duration.toStringAsFixed(2)}s',
+        tag: _tag,
       );
 
       // [SENIOR OPTIMIZATION]: Evitar la penalización FFI y GC.

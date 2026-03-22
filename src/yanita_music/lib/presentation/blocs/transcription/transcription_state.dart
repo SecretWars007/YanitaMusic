@@ -30,15 +30,17 @@ final class AudioProcessing extends TranscriptionState {
   final String fileName;
   final String statusMessage;
   final String? detailMessage;
+  final List<TranscriptionStep> steps;
 
   const AudioProcessing({
     required this.fileName,
+    required this.steps,
     this.statusMessage = 'Procesando audio...',
     this.detailMessage,
   });
 
   @override
-  List<Object?> get props => [fileName, statusMessage, detailMessage];
+  List<Object?> get props => [fileName, statusMessage, detailMessage, steps];
 }
 
 /// Transcribiendo (inferencia TFLite del modelo Onsets and Frames).
@@ -46,15 +48,17 @@ final class Transcribing extends TranscriptionState {
   final String fileName;
   final String statusMessage;
   final String? detailMessage;
+  final List<TranscriptionStep> steps;
 
   const Transcribing({
     required this.fileName,
+    required this.steps,
     this.statusMessage = 'Transcribiendo notas musicales...',
     this.detailMessage,
   });
 
   @override
-  List<Object?> get props => [fileName, statusMessage, detailMessage];
+  List<Object?> get props => [fileName, statusMessage, detailMessage, steps];
 }
 
 /// Transcripción completada exitosamente.
@@ -105,12 +109,14 @@ final class TranscriptionSaved extends TranscriptionState {
 final class TranscriptionError extends TranscriptionState {
   final String message;
   final String? lastFilePath;
+  final List<TranscriptionStep>? steps;
 
   const TranscriptionError({
     required this.message,
     this.lastFilePath,
+    this.steps,
   });
 
   @override
-  List<Object?> get props => [message, lastFilePath];
+  List<Object?> get props => [message, lastFilePath, steps];
 }

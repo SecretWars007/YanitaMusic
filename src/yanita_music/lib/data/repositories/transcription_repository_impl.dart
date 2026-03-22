@@ -9,14 +9,14 @@ import 'package:yanita_music/domain/entities/audio_features.dart';
 import 'package:yanita_music/domain/entities/note_event.dart';
 import 'package:yanita_music/domain/repositories/transcription_repository.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
-import 'package:logger/logger.dart';
+import 'package:yanita_music/core/utils/logger.dart';
 
 import 'package:yanita_music/core/mixins/status_stream_mixin.dart';
 
 /// Implementación del repositorio de transcripción musical optimizada para memoria.
 class TranscriptionRepositoryImpl with StatusStreamMixin implements TranscriptionRepository {
   Interpreter? _interpreter;
-  final Logger _logger = Logger();
+  static const String _tag = 'TranscriptionRepository';
   bool _isInitialized = false;
   bool _isMockMode = false;
 
@@ -24,7 +24,7 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
   Future<Either<Failure, void>> initializeModel() async {
     try {
       sendStatus('Cargando modelo TFLite...');
-      _logger.i('Cargando modelo TFLite desde: ${AppConstants.tfliteModelPath}');
+      AppLogger.info('Cargando modelo TFLite desde: ${AppConstants.tfliteModelPath}', tag: _tag);
 
       // Intento 1: Con GPU Delegate (si es Android)
       if (Platform.isAndroid) {
@@ -37,10 +37,10 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
           );
           _isInitialized = true;
           sendStatus('Modelo cargado exitosamente con GPU');
-          _logger.i('Modelo cargado exitosamente con GPU');
+          AppLogger.info('Modelo cargado exitosamente con GPU', tag: _tag);
           return const Right(null);
         } catch (e) {
-          _logger.w('Fallo inicio con GPU, reintentando con CPU: $e');
+          AppLogger.warning('Fallo inicio con GPU, reintentando con CPU: $e', tag: _tag);
         }
       }
 
@@ -55,7 +55,7 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
         // Intento 3: Intentar remover el prefijo 'assets/' si existe
         if (AppConstants.tfliteModelPath.startsWith('assets/')) {
           final plainPath = AppConstants.tfliteModelPath.replaceFirst('assets/', '');
-          _logger.i('Reintentando con ruta sin prefijo: $plainPath');
+          AppLogger.info('Reintentando con ruta sin prefijo: $plainPath', tag: _tag);
           _interpreter = await Interpreter.fromAsset(
             plainPath,
             options: cpuOptions,
@@ -67,17 +67,17 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
 
       _isInitialized = true;
       sendStatus('Modelo TFLite listo (modo CPU)');
-      _logger.i('Modelo TFLite cargado exitosamente (CPU mode)');
+      AppLogger.info('Modelo TFLite cargado exitosamente (CPU mode)', tag: _tag);
       return const Right(null);
 
-    } catch (e) {
+    } catch (e, stackTrace) {
       final errorStr = e.toString().toLowerCase();
-      _logger.e('Error crítico cargando modelo TFLite: $errorStr');
+      AppLogger.error('Error crítico cargando modelo TFLite', tag: _tag, error: e, stackTrace: stackTrace);
 
       if (errorStr.contains('unable to create model') || 
           errorStr.contains('asset') ||
           errorStr.contains('interpreter')) {
-        _logger.w('Detectado error persistente. Activando MOCK MODE para permitir uso básico.');
+        AppLogger.warning('Detectado error persistente. Activando MOCK MODE para permitir uso básico.', tag: _tag);
         _isMockMode = true;
         _isInitialized = true;
         return const Right(null);
@@ -96,7 +96,7 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
     AudioFeatures audioFeatures,
   ) async {
     if (!_isInitialized || (_interpreter == null && !_isMockMode)) {
-      _logger.i('Modelo no inicializado. Iniciando automáticamente...');
+      AppLogger.info('Modelo no inicializado. Iniciando automáticamente...', tag: _tag);
       final initResult = await initializeModel();
       final initError = initResult.fold((failure) => failure, (_) => null);
       if (initError != null) return Left(initError);
@@ -104,7 +104,7 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
 
     try {
       if (_isMockMode) {
-        _logger.w('Generando notas MOCK porque no hay modelo real.');
+        AppLogger.warning('Generando notas MOCK porque no hay modelo real.', tag: _tag);
         return Right(_generateMockNotes(audioFeatures.audioDuration));
       }
 
@@ -134,7 +134,7 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
         return Right(noteEvents);
       } else {
         // [SENIOR OPTIMIZATION]: Procesamiento PARALELO en N Isolates
-        _logger.i('Iniciando procesamiento paralelo en $numIsolates Isolates...');
+        AppLogger.info('Iniciando procesamiento paralelo en $numIsolates Isolates...', tag: _tag);
         sendStatus('Procesando en paralelo ($numIsolates núcleos)...');
         
         final List<Future<List<NoteEvent>>> isolateFutures = [];
@@ -145,7 +145,7 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
           final int endFrame = (i == numIsolates - 1) ? totalFrames : (i + 1) * framesPerPart;
           final int partFrames = endFrame - startFrame;
           
-          _logger.d('Isolate $i: frames $startFrame a $endFrame');
+          AppLogger.debug('Isolate $i: frames $startFrame a $endFrame', tag: _tag);
           
           // Slice del espectrograma para esta parte
           final partSpectrogram = Float32List(partFrames * audioFeatures.numMelBins);
@@ -189,11 +189,11 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
           mergedNotes = _stitchNoteEvents(mergedNotes, result);
         }
 
-        _logger.i('Transcripción paralela completada: ${mergedNotes.length} notas');
+        AppLogger.info('Transcripción paralela completada: ${mergedNotes.length} notas', tag: _tag);
         return Right(mergedNotes);
       }
     } catch (e, stackTrace) {
-      _logger.e('Error crítico en transcripción: $e\n$stackTrace');
+      AppLogger.error('Error crítico en transcripción', tag: _tag, error: e, stackTrace: stackTrace);
       return Left(TranscriptionFailure(message: 'Error en transcripción: $e'));
     }
   }
@@ -373,7 +373,7 @@ class TranscriptionRepositoryImpl with StatusStreamMixin implements Transcriptio
     _interpreter?.close();
     _interpreter = null;
     _isInitialized = false;
-    _logger.i('Modelo TFLite liberado');
+    AppLogger.info('Modelo TFLite liberado', tag: _tag);
   }
 }
 

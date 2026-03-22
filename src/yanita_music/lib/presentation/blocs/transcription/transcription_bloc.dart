@@ -11,10 +11,12 @@ import 'package:yanita_music/domain/usecases/process_audio_usecase.dart';
 import 'package:yanita_music/domain/usecases/transcribe_audio_usecase.dart';
 import 'package:yanita_music/domain/usecases/save_score_usecase.dart';
 import 'package:yanita_music/core/utils/spectrogram_utils.dart';
+import 'package:yanita_music/core/utils/logger.dart';
 
 
 part 'transcription_event.dart';
 part 'transcription_state.dart';
+part 'transcription_step.dart';
 
 /// BLoC principal para el pipeline de transcripción musical.
 class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
@@ -22,6 +24,7 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
   final TranscribeAudioUseCase _transcribeAudioUseCase;
   final SaveScoreUseCase _saveScoreUseCase;
 
+  static const String _tag = 'TranscriptionBloc';
   String? _lastFilePath;
 
   TranscriptionBloc({
@@ -40,6 +43,17 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
     on<_UpdateStatus>(_onUpdateStatus);
   }
 
+  static List<TranscriptionStep> _initialSteps() => [
+    const TranscriptionStep(id: 'conv', title: 'Conversión (MP3 a WAV)'),
+    const TranscriptionStep(id: 'spec', title: 'Generación de Espectrograma'),
+    const TranscriptionStep(id: 'inf', title: 'Inferencia de IA'),
+    const TranscriptionStep(id: 'xml', title: 'Generación de Partitura'),
+  ];
+
+  List<TranscriptionStep> _updateStep(List<TranscriptionStep> steps, String id, TranscriptionStepStatus status, [String? message]) {
+    return steps.map((step) => step.id == id ? step.copyWith(status: status, message: message) : step).toList();
+  }
+
   Future<void> _onSelectAudioFile(
     SelectAudioFile event,
     Emitter<TranscriptionState> emit,
@@ -55,6 +69,7 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
       final filePath = file.path;
       if (filePath != null) {
         _lastFilePath = filePath;
+        AppLogger.info('Archivo seleccionado: ${file.name}', tag: _tag);
         emit(AudioFileSelected(
           filePath: filePath,
           fileName: file.name,
@@ -68,17 +83,31 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
     Emitter<TranscriptionState> emit,
   ) {
     final currentState = state;
-    if (currentState is AudioProcessing && event.phase == 'audio') {
+    if (currentState is AudioProcessing) {
+      // Mapear mensajes de audio a pasos específicos si es posible
+      var updatedSteps = currentState.steps;
+      if (event.message.contains('wav')) {
+        updatedSteps = _updateStep(updatedSteps, 'conv', TranscriptionStepStatus.processing, event.message);
+      } else if (event.message.contains('espectrograma')) {
+        updatedSteps = _updateStep(updatedSteps, 'conv', TranscriptionStepStatus.completed);
+        updatedSteps = _updateStep(updatedSteps, 'spec', TranscriptionStepStatus.processing, event.message);
+      }
+
       emit(AudioProcessing(
         fileName: currentState.fileName,
         statusMessage: currentState.statusMessage,
         detailMessage: event.message,
+        steps: updatedSteps,
       ));
-    } else if (currentState is Transcribing && event.phase == 'transcription') {
+    } else if (currentState is Transcribing) {
+      var updatedSteps = currentState.steps;
+      updatedSteps = _updateStep(updatedSteps, 'inf', TranscriptionStepStatus.processing, event.message);
+
       emit(Transcribing(
         fileName: currentState.fileName,
         statusMessage: currentState.statusMessage,
         detailMessage: event.message,
+        steps: updatedSteps,
       ));
     }
   }
@@ -99,11 +128,16 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
       add(_UpdateStatus(message: message, phase: 'transcription'));
     });
 
+    AppLogger.info('Iniciando transcripción para: $fileName', tag: _tag);
+
     try {
+      final steps = _initialSteps();
+      
       // Fase 1: Procesamiento de audio
       emit(AudioProcessing(
         fileName: fileName,
         statusMessage: 'Preparando espectrograma Mel...',
+        steps: _updateStep(steps, 'conv', TranscriptionStepStatus.processing, 'Iniciando decodificación...'),
       ));
 
       final audioResult = await _processAudioUseCase(
@@ -112,21 +146,31 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
 
       final audioFeatures = audioResult.fold(
         (failure) {
+          AppLogger.error('Fallo en procesamiento de audio: ${failure.message}', tag: _tag);
           emit(TranscriptionError(
             message: failure.message,
             lastFilePath: event.filePath,
+            steps: _updateStep(steps, 'conv', TranscriptionStepStatus.error, failure.message),
           ));
           return null;
         },
-        (features) => features,
+        (features) {
+          AppLogger.info('Procesamiento de audio completado (Duración: ${features.audioDuration.toStringAsFixed(1)}s)', tag: _tag);
+          return features;
+        },
       );
 
       if (audioFeatures == null) return;
 
       // Fase 2: Transcripción TFLite
+      var updatedSteps = _updateStep(steps, 'conv', TranscriptionStepStatus.completed);
+      updatedSteps = _updateStep(updatedSteps, 'spec', TranscriptionStepStatus.completed);
+      updatedSteps = _updateStep(updatedSteps, 'inf', TranscriptionStepStatus.processing);
+
       emit(Transcribing(
         fileName: fileName,
         statusMessage: 'Ejecutando modelo Onsets and Frames...',
+        steps: updatedSteps,
       ));
 
       final transcriptionResult = await _transcribeAudioUseCase(
@@ -135,13 +179,18 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
 
       final noteEvents = transcriptionResult.fold(
         (failure) {
+          AppLogger.error('Fallo en inferencia TFLite: ${failure.message}', tag: _tag);
           emit(TranscriptionError(
             message: failure.message,
             lastFilePath: event.filePath,
+            steps: _updateStep(updatedSteps, 'inf', TranscriptionStepStatus.error, failure.message),
           ));
           return null;
         },
-        (events) => events,
+        (events) {
+          AppLogger.info('Inferencia completada: ${events.length} notas detectadas', tag: _tag);
+          return events;
+        },
       );
 
       if (noteEvents == null) return;
@@ -161,6 +210,10 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
       }
 
       final title = fileName.replaceAll(RegExp(r'\.[^.]+$'), '');
+      
+      updatedSteps = _updateStep(updatedSteps, 'inf', TranscriptionStepStatus.completed);
+      updatedSteps = _updateStep(updatedSteps, 'xml', TranscriptionStepStatus.processing, 'Analizando polifonía y métrica...');
+      
       emit(SavingTranscription(title: title));
 
       final now = DateTime.now();
@@ -175,7 +228,9 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
         
         await File(event.filePath).copy(newAudioFile.path);
         permanentAudioPath = newAudioFile.path;
-      } catch (e) {
+        AppLogger.debug('Audio persistido en: $permanentAudioPath', tag: _tag);
+      } catch (e, stackTrace) {
+        AppLogger.error('Error persistiendo audio', tag: _tag, error: e, stackTrace: stackTrace);
         emit(TranscriptionError(
           message: 'Error copiando audio a almacenamiento persistente: $e',
           lastFilePath: event.filePath,
@@ -198,11 +253,17 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
       final saveResult = await _saveScoreUseCase(SaveScoreParams(score: score));
 
       saveResult.fold(
-        (failure) => emit(TranscriptionError(
-          message: 'Error al auto-guardar: ${failure.message}',
-          lastFilePath: event.filePath,
-        )),
+        (failure) {
+          AppLogger.error('Error auto-guardando resultado: ${failure.message}', tag: _tag);
+          emit(TranscriptionError(
+            message: 'Error al auto-guardar: ${failure.message}',
+            lastFilePath: event.filePath,
+          ));
+        },
         (savedScore) {
+          AppLogger.info('Resultado guardado automáticamente con ID: ${savedScore.id}', tag: _tag);
+          updatedSteps = _updateStep(updatedSteps, 'xml', TranscriptionStepStatus.completed);
+          
           emit(TranscriptionSuccess(
             filePath: event.filePath,
             noteCount: noteEvents.length,
@@ -216,7 +277,8 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
           ));
         },
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error('Error crítico en el pipeline de transcripción', tag: _tag, error: e, stackTrace: stackTrace);
       emit(TranscriptionError(
         message: 'Error inesperado durante la transcripción: $e',
         lastFilePath: event.filePath,
