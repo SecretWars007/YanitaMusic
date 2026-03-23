@@ -1,4 +1,4 @@
-# 🎹 PianoScribe – Transcripción Musical Automática (AMT)
+# 🎹 YANITA MUSIC – Transcripción Musical Automática (AMT)
 
 <p align="center">
   <strong>MVP de aplicación móvil para transcripción musical automática de piano electrónico</strong>
